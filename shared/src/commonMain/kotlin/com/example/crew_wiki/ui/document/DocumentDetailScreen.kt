@@ -47,6 +47,22 @@ fun DocumentDetailScreen(
         verticalArrangement = Arrangement.spacedBy(spacing.md),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
+        // 액션 버튼 (편집하기 / 편집기록 / 작성하기) - 텍스트 박스 바깥, 최상단
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
+                    CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
+                    CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
+                }
+            }
+        }
+
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -57,12 +73,13 @@ fun DocumentDetailScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
-                    // 헤더 - 제목(왼쪽) + 버튼(오른쪽)
-                    DocumentDetailHeader(
-                        title = document.title,
-                        onEditClick = onEditClick,
-                        onLogsClick = onLogsClick,
-                        onWriteClick = onWriteClick,
+                    // 제목
+                    Text(
+                        text = document.title,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.grayscale.c800,
+                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     // 소속 섹션
@@ -132,37 +149,6 @@ fun DocumentDetailScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DocumentDetailHeader(
-    title: String,
-    onEditClick: () -> Unit,
-    onLogsClick: () -> Unit,
-    onWriteClick: () -> Unit,
-) {
-    val colors = CrewWikiDesignTokens.colors
-    val spacing = CrewWikiDesignTokens.spacing
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
-                CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
-                CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
-            }
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = colors.grayscale.c800,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 

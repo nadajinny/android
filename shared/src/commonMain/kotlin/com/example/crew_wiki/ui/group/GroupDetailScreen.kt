@@ -49,7 +49,23 @@ fun GroupDetailScreen(
         verticalArrangement = Arrangement.spacedBy(spacing.xl),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
-        // 메인 카드 (헤더 + 본문 + 연관 문서)
+        // 액션 버튼 (편집기록) - 텍스트 박스 바깥, 최상단
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                CrewWikiActionButton(
+                    text = "편집기록",
+                    onClick = onLogsClick,
+                    style = CrewWikiActionButtonStyle.Tertiary,
+                )
+            }
+        }
+
+        // 메인 카드 (제목 + 본문 + 연관 문서)
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -60,25 +76,13 @@ fun GroupDetailScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
-                    // 헤더 — 제목(왼쪽) + 편집기록 버튼(오른쪽)
-                    Row(
+                    Text(
+                        text = detail.title,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.grayscale.c800,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Text(
-                            text = detail.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.grayscale.c800,
-                            modifier = Modifier.weight(1f).padding(end = spacing.md),
-                        )
-                        CrewWikiActionButton(
-                            text = "편집기록",
-                            onClick = onLogsClick,
-                            style = CrewWikiActionButtonStyle.Tertiary,
-                        )
-                    }
+                    )
 
                     // 본문 마크다운 (자체 렌더러)
                     val content = detail.contents.preprocessMarkdown()
