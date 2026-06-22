@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -21,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.example.crew_wiki.CrewWikiDesignTokens
 import com.example.crew_wiki.model.CrewWikiDocumentDetail
 import com.example.crew_wiki.model.OrganizationReference
@@ -42,6 +46,11 @@ fun DocumentDetailScreen(
     val document = documentDetail.document
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
+    val coroutineScope = rememberCoroutineScope()
+
+    val content = document.contents.preprocessMarkdown()
+    val headings = remember(content) { extractMarkdownHeadings(content) }
+    val headingRequesters = remember(headings) { headings.map { BringIntoViewRequester() } }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -83,6 +92,17 @@ fun DocumentDetailScreen(
                         color = colors.grayscale.border,
                     )
 
+                    // 목차
+                    TableOfContents(
+                        headings = headings,
+                        onEntryClick = { headingIndex ->
+                            coroutineScope.launch {
+                                headingRequesters.getOrNull(headingIndex)?.bringIntoView()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
                     // 소속 섹션
                     if (document.organizations.isNotEmpty()) {
                         OrganizationSection(
@@ -92,11 +112,11 @@ fun DocumentDetailScreen(
                     }
 
                     // 본문 마크다운 (자체 렌더러)
-                    val content = document.contents.preprocessMarkdown()
                     if (content.isNotBlank()) {
                         MarkdownContent(
                             content = content,
                             modifier = Modifier.fillMaxWidth(),
+                            headingRequesters = headingRequesters,
                         )
                     }
 

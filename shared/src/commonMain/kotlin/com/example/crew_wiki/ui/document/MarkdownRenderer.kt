@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -46,6 +48,15 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.crew_wiki.CrewWikiDesignTokens
 
+/** 목차(TOC) 항목 — h1~h6 중 본문에 등장한 순서대로, [MarkdownContent]의 headingRequesters 인덱스와 1:1 대응한다. */
+data class MarkdownHeadingOutline(val level: Int, val text: String)
+
+/** [content]에서 헤딩 목록을 추출한다. [MarkdownContent]가 그리는 헤딩과 동일한 순서/개수를 보장한다. */
+fun extractMarkdownHeadings(content: String): List<MarkdownHeadingOutline> =
+    parseMarkdownBlocks(content).filterIsInstance<MarkdownBlock.Heading>().map {
+        MarkdownHeadingOutline(level = it.level, text = it.text)
+    }
+
 /**
  * KMP iOS 안전 마크다운 렌더러 (자체 구현)
  * 지원: h1~h6, 단락, 표, **bold**, *italic*, `code`, 이미지, 수평선, 순서/비순서 목록, <br>
@@ -54,20 +65,26 @@ import com.example.crew_wiki.CrewWikiDesignTokens
 fun MarkdownContent(
     content: String,
     modifier: Modifier = Modifier,
+    headingRequesters: List<BringIntoViewRequester> = emptyList(),
 ) {
     val blocks = parseMarkdownBlocks(content)
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
     val uriHandler = LocalUriHandler.current
+    var headingCounter = 0
 
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
             when (block) {
                 is MarkdownBlock.Heading -> {
+                    val headingIndex = headingCounter++
                     MarkdownHeading(
                         text = block.text,
                         level = block.level,
                         isFirstBlock = index == 0,
+                        modifier = headingRequesters.getOrNull(headingIndex)?.let {
+                            Modifier.bringIntoViewRequester(it)
+                        } ?: Modifier,
                     )
                 }
 
@@ -225,9 +242,11 @@ private fun MarkdownHeading(
     text: String,
     level: Int,
     isFirstBlock: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val colors = CrewWikiDesignTokens.colors
 
+    Column(modifier = modifier) {
     when (level) {
         1 -> {
             Spacer(Modifier.height(if (isFirstBlock) 14.dp else 52.dp))
@@ -293,6 +312,7 @@ private fun MarkdownHeading(
             )
             Spacer(Modifier.height(4.dp))
         }
+    }
     }
 }
 
@@ -635,14 +655,14 @@ private val unorderedListRegex = Regex("^(\\s*)[-*+]\\s*(.*)")
 private val fenceStart = Regex("^```(\\w*)")
 private val tableRowRegex = Regex("^\\|(.+)\\|\\s*$")
 private val tableSepRegex = Regex("^\\|[-:| ]+\\|\\s*$")
-private val htmlTableRowRegex = Regex("<tr\\b[^>]*>(.*?)</tr>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-private val htmlTableCellRegex = Regex("<(th|td)\\b([^>]*)>(.*?)</(?:th|td)>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+private val htmlTableRowRegex = Regex("<tr\\b[^>]*>([\\s\\S]*?)</tr>", RegexOption.IGNORE_CASE)
+private val htmlTableCellRegex = Regex("<(th|td)\\b([^>]*)>([\\s\\S]*?)</(?:th|td)>", RegexOption.IGNORE_CASE)
 private val tableTagStartRegex = Regex("<table\\b", RegexOption.IGNORE_CASE)
 private val tableTagEndRegex = Regex("</table>", RegexOption.IGNORE_CASE)
 private val nonTableHtmlRegex = Regex("</?(?!table\\b|thead\\b|tbody\\b|tr\\b|th\\b|td\\b|img\\b)[A-Za-z][^>]*>", RegexOption.IGNORE_CASE)
 private val htmlColspanRegex = Regex("""colspan\s*=\s*"(\d+)"""", RegexOption.IGNORE_CASE)
 private val htmlAlignRegex = Regex("""align\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
-private val htmlImageSrcRegex = Regex("""<img\b[^>]*src\s*=\s*"([^"]+)"""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+private val htmlImageSrcRegex = Regex("""<img\b[^>]*src\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
 
 private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
     val text = raw.preprocessMarkdown()
