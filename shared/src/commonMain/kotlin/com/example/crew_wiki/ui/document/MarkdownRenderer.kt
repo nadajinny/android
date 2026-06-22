@@ -90,15 +90,16 @@ fun MarkdownContent(
 
                 is MarkdownBlock.Image -> {
                     if (index > 0) Spacer(Modifier.height(spacing.md))
+                    val imageCaption = block.alt.toVisibleImageCaption()
                     AsyncImage(
                         model = block.url,
-                        contentDescription = block.alt,
+                        contentDescription = imageCaption,
                         modifier = Modifier.fillMaxWidth().height(200.dp),
                     )
-                    if (block.alt.isNotBlank()) {
+                    if (imageCaption != null) {
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = block.alt,
+                            text = imageCaption,
                             style = MaterialTheme.typography.labelSmall,
                             color = colors.grayscale.c500,
                         )
@@ -477,3 +478,10 @@ internal fun String.preprocessMarkdown(): String = this
     .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
     .replace(Regex("<[^>]+>"), "")
     .trimEnd()
+
+private fun String.toVisibleImageCaption(): String? {
+    val normalized = trim()
+    if (normalized.isBlank()) return null
+    if (normalized.equals("image", ignoreCase = true)) return null
+    return normalized
+}
