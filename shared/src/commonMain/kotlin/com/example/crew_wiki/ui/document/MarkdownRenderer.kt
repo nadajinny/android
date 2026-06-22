@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -74,6 +76,12 @@ fun MarkdownContent(
                         color = colors.grayscale.text,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+
+                is MarkdownBlock.BlockQuote -> {
+                    Spacer(Modifier.height(14.dp))
+                    MarkdownBlockQuote(block.annotated)
+                    Spacer(Modifier.height(14.dp))
                 }
 
                 is MarkdownBlock.Table -> {
@@ -257,6 +265,32 @@ private fun DoubleHorizontalDivider(
     }
 }
 
+@Composable
+private fun MarkdownBlockQuote(
+    text: AnnotatedString,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .fillMaxHeight()
+                .background(Color(0xFFE5E5E5)),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color(0xFF999999),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 16.dp),
+        )
+    }
+}
+
 // ── 표 렌더러 ──────────────────────────────────────────────────────────────────
 
 private val TableBorderColor = Color(0xFF1A1A1A)
@@ -374,6 +408,7 @@ private enum class TableAlign { Start, Center, End }
 private sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class Paragraph(val annotated: AnnotatedString) : MarkdownBlock
+    data class BlockQuote(val annotated: AnnotatedString) : MarkdownBlock
     data class Table(
         val headers: List<String>,
         val alignments: List<TableAlign>,
@@ -389,6 +424,7 @@ private sealed interface MarkdownBlock {
 // ── 파서 ───────────────────────────────────────────────────────────────────────
 
 private val headingRegex = Regex("^(#{1,6})\\s+(.*)")
+private val blockQuoteRegex = Regex("^>\\s?(.*)$")
 private val hrRegex = Regex("^[-*_]{3,}\\s*$")
 private val orderedListRegex = Regex("^(\\d+)\\.\\s+(.*)")
 private val unorderedListRegex = Regex("^[-*+]\\s+(.*)")
@@ -436,6 +472,20 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
         // 이미지 / 링크가 걸린 이미지
         parseImageBlock(line.trim())?.let { imageBlock ->
             blocks += imageBlock
+            i++; continue
+        }
+
+        // 인용문
+        val blockQuoteMatch = blockQuoteRegex.find(line)
+        if (blockQuoteMatch != null) {
+            val quoteLines = mutableListOf(blockQuoteMatch.groupValues[1])
+            while (i + 1 < lines.size) {
+                val next = lines[i + 1]
+                val nextMatch = blockQuoteRegex.find(next) ?: break
+                quoteLines += nextMatch.groupValues[1]
+                i++
+            }
+            blocks += MarkdownBlock.BlockQuote(parseInline(quoteLines.joinToString("\n")))
             i++; continue
         }
 
@@ -487,7 +537,7 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
             val next = lines[i + 1]
             if (next.isBlank() || headingRegex.containsMatchIn(next) ||
                 hrRegex.matches(next) || fenceStart.containsMatchIn(next) ||
-                tableRowRegex.matches(next)
+                tableRowRegex.matches(next) || blockQuoteRegex.matches(next)
             ) break
             paragraphLines += next; i++
         }
