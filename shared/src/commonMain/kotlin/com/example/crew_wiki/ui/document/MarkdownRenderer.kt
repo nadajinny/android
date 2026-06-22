@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -20,11 +21,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -38,10 +41,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.crew_wiki.CrewWikiDesignTokens
-import kotlin.math.max
 
 /**
  * KMP iOS 안전 마크다운 렌더러 (자체 구현)
@@ -87,6 +90,12 @@ fun MarkdownContent(
                 is MarkdownBlock.Table -> {
                     if (index > 0) Spacer(Modifier.height(spacing.md))
                     MarkdownTable(table = block)
+                    Spacer(Modifier.height(spacing.md))
+                }
+
+                is MarkdownBlock.HtmlTable -> {
+                    if (index > 0) Spacer(Modifier.height(spacing.md))
+                    MarkdownHtmlTable(table = block)
                     Spacer(Modifier.height(spacing.md))
                 }
 
@@ -340,34 +349,67 @@ private val TableLabelBackground = Color(0xFF555555)
 private val TableLabelTextColor = Color.White
 private val TableValueBackground = Color.White
 private val TableValueTextColor = Color(0xFF222222)
+private val TableCellMinWidth = 96.dp
 
 @Composable
 private fun MarkdownTable(table: MarkdownBlock.Table) {
-    val colCount = table.headers.size
-    // 마크다운 문법상 첫 행은 헤더로 파싱되지만, 라벨/값 카드 스타일에서는
-    // 모든 행을 동일하게 "1열 = 라벨, 나머지 열 = 값"으로 취급한다.
-    val allRows = listOf(table.headers) + table.rows
-    val rowCount = allRows.size
+    val colCount = maxOf(table.headers.size, table.rows.maxOfOrNull { it.size } ?: 0)
+    if (colCount == 0) return
 
-    // 열 수가 많을 수 있으므로 가로 스크롤 지원
-    Row(
+    val allRows = listOf(table.headers.normalizeTableRow(colCount)) +
+        table.rows.map { it.normalizeTableRow(colCount) }
+    val rowSpans = remember(allRows) { allRows.map { row -> List(row.size) { 1 } } }
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
             .background(TableValueBackground)
             .border(1.dp, TableBorderColor),
     ) {
-        TableGrid(
-            colCount = colCount,
-            rowCount = rowCount,
-        ) {
-            allRows.forEach { row ->
-                (0 until colCount).forEach { colIdx ->
-                    val cell = row.getOrElse(colIdx) { "" }
-                    TableCell(
-                        text = parseInline(cell.trim()),
-                        isLabelColumn = colIdx == 0,
-                    )
+        val availableWidthPx = constraints.maxWidth
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            TableGridLayout(
+                rowSpans = rowSpans,
+                totalColumns = colCount,
+                minTotalWidthPx = availableWidthPx,
+            ) {
+                allRows.forEach { row ->
+                    row.forEachIndexed { colIdx, cell ->
+                        TableCell(
+                            text = parseInline(cell.trim()),
+                            isLabelColumn = colIdx == 0,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownHtmlTable(table: MarkdownBlock.HtmlTable) {
+    val totalColumns = table.rows.maxOfOrNull { row -> row.cells.sumOf { it.colspan } } ?: 0
+    if (totalColumns == 0) return
+
+    val rowSpans = remember(table.rows) { table.rows.map { row -> row.cells.map { it.colspan } } }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(TableValueBackground)
+            .border(1.dp, TableBorderColor),
+    ) {
+        val availableWidthPx = constraints.maxWidth
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            TableGridLayout(
+                rowSpans = rowSpans,
+                totalColumns = totalColumns,
+                minTotalWidthPx = availableWidthPx,
+            ) {
+                table.rows.forEach { row ->
+                    row.cells.forEach { cell ->
+                        HtmlTableCell(cell = cell)
+                    }
                 }
             }
         }
@@ -375,47 +417,82 @@ private fun MarkdownTable(table: MarkdownBlock.Table) {
 }
 
 /**
- * 표를 (colCount × rowCount) 그리드로 배치한다.
- * 1차 측정으로 각 열의 최대 너비/각 행의 최대 높이를 구하고,
- * 2차 측정에서 모든 셀을 해당 너비·높이로 고정해 행/열 경계선이 정확히 맞도록 한다.
+ * 모든 행의 동일한 열이 같은 너비를, 같은 행의 셀들이 같은 높이를 갖도록
+ * 2-pass로 측정/배치하는 표 그리드. colspan을 지원한다.
  */
 @Composable
-private fun TableGrid(
-    colCount: Int,
-    rowCount: Int,
+private fun TableGridLayout(
+    rowSpans: List<List<Int>>,
+    totalColumns: Int,
+    minTotalWidthPx: Int,
+    modifier: Modifier = Modifier,
+    cellMinWidth: Dp = TableCellMinWidth,
     content: @Composable () -> Unit,
 ) {
-    Layout(content = content) { measurables, _ ->
-        require(measurables.size == colCount * rowCount)
+    SubcomposeLayout(modifier) { _ ->
+        val minWidthPx = cellMinWidth.roundToPx()
 
-        val loose = Constraints()
-        val natural = measurables.map { it.measure(loose) }
+        // 1차: 제약 없이 측정하여 각 셀의 자연스러운 크기를 파악한다.
+        val naturalPlaceables = subcompose(0, content).map { it.measure(Constraints()) }
 
-        val colWidths = IntArray(colCount) { c ->
-            (0 until rowCount).maxOf { r -> natural[r * colCount + c].width }
-        }
-        val rowHeights = IntArray(rowCount) { r ->
-            (0 until colCount).maxOf { c -> natural[r * colCount + c].height }
-        }
-
-        val placeables = measurables.mapIndexed { idx, measurable ->
-            val r = idx / colCount
-            val c = idx % colCount
-            measurable.measure(Constraints.fixed(max(colWidths[c], 1), max(rowHeights[r], 1)))
-        }
-
-        val totalWidth = colWidths.sum()
-        val totalHeight = rowHeights.sum()
-
-        layout(totalWidth, totalHeight) {
-            var y = 0
-            for (r in 0 until rowCount) {
-                var x = 0
-                for (c in 0 until colCount) {
-                    placeables[r * colCount + c].placeRelative(x, y)
-                    x += colWidths[c]
+        val colWidths = IntArray(totalColumns) { minWidthPx }
+        val rowHeights = IntArray(rowSpans.size)
+        var idx = 0
+        for ((rowIndex, row) in rowSpans.withIndex()) {
+            var col = 0
+            for (span in row) {
+                val placeable = naturalPlaceables[idx]
+                val perColWidth = (placeable.width + span - 1) / span
+                for (c in col until (col + span).coerceAtMost(totalColumns)) {
+                    colWidths[c] = maxOf(colWidths[c], perColWidth)
                 }
-                y += rowHeights[r]
+                rowHeights[rowIndex] = maxOf(rowHeights[rowIndex], placeable.height)
+                col += span
+                idx++
+            }
+        }
+
+        // 표가 화면보다 좁으면 남는 너비를 열에 균등 분배해 꽉 채운다.
+        val naturalTotal = colWidths.sum()
+        if (minTotalWidthPx > naturalTotal) {
+            val extra = minTotalWidthPx - naturalTotal
+            val per = extra / totalColumns
+            val remainder = extra % totalColumns
+            for (i in colWidths.indices) {
+                colWidths[i] += per + if (i < remainder) 1 else 0
+            }
+        }
+
+        // 2차: 확정된 열 너비·행 높이로 모든 셀을 동일하게 고정 측정한다.
+        val finalPlaceables = subcompose(1, content)
+        val placeables = arrayOfNulls<Placeable>(finalPlaceables.size)
+        idx = 0
+        for ((rowIndex, row) in rowSpans.withIndex()) {
+            var col = 0
+            for (span in row) {
+                val cellWidth = (col until (col + span).coerceAtMost(totalColumns)).sumOf { colWidths[it] }
+                placeables[idx] = finalPlaceables[idx].measure(
+                    Constraints.fixed(cellWidth, rowHeights[rowIndex]),
+                )
+                col += span
+                idx++
+            }
+        }
+
+        layout(colWidths.sum(), rowHeights.sum()) {
+            var y = 0
+            idx = 0
+            for ((rowIndex, row) in rowSpans.withIndex()) {
+                var x = 0
+                var col = 0
+                for (span in row) {
+                    placeables[idx]?.placeRelative(x, y)
+                    val cellWidth = (col until (col + span).coerceAtMost(totalColumns)).sumOf { colWidths[it] }
+                    x += cellWidth
+                    col += span
+                    idx++
+                }
+                y += rowHeights[rowIndex]
             }
         }
     }
@@ -425,12 +502,13 @@ private fun TableGrid(
 private fun TableCell(
     text: AnnotatedString,
     isLabelColumn: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .defaultMinSize(minHeight = 72.dp)
             .background(if (isLabelColumn) TableLabelBackground else TableValueBackground)
-            .border(width = 1.dp, color = TableBorderColor),
+            .border(width = 0.5.dp, color = TableBorderColor),
         contentAlignment = if (isLabelColumn) Alignment.Center else Alignment.CenterStart,
     ) {
         Text(
@@ -442,6 +520,64 @@ private fun TableCell(
             textAlign = if (isLabelColumn) TextAlign.Center else TextAlign.Start,
             modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
         )
+    }
+}
+
+private fun List<String>.normalizeTableRow(columnCount: Int): List<String> =
+    this + List((columnCount - size).coerceAtLeast(0)) { "" }
+
+@Composable
+private fun HtmlTableCell(
+    cell: MarkdownBlock.HtmlTableCell,
+    modifier: Modifier = Modifier,
+) {
+    val isImageCell = cell.imageUrl != null
+    val backgroundColor = when {
+        isImageCell -> TableValueBackground
+        cell.isHeader -> TableLabelBackground
+        else -> TableValueBackground
+    }
+    val contentAlignment = when {
+        isImageCell -> Alignment.Center
+        cell.align == TableAlign.Center || cell.isHeader -> Alignment.Center
+        cell.align == TableAlign.End -> Alignment.CenterEnd
+        else -> Alignment.CenterStart
+    }
+
+    Box(
+        modifier = modifier
+            .defaultMinSize(minHeight = if (isImageCell) 220.dp else 72.dp)
+            .background(backgroundColor)
+            .border(width = 0.5.dp, color = TableBorderColor),
+        contentAlignment = contentAlignment,
+    ) {
+        when {
+            cell.imageUrl != null -> {
+                AsyncImage(
+                    model = cell.imageUrl,
+                    contentDescription = cell.text.ifBlank { null },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                )
+            }
+
+            else -> {
+                Text(
+                    text = parseInline(cell.text),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = if (cell.isHeader) FontWeight.SemiBold else FontWeight.Bold,
+                    ),
+                    color = if (cell.isHeader) TableLabelTextColor else TableValueTextColor,
+                    textAlign = when {
+                        cell.align == TableAlign.Center || cell.isHeader -> TextAlign.Center
+                        cell.align == TableAlign.End -> TextAlign.End
+                        else -> TextAlign.Start
+                    },
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
+                )
+            }
+        }
     }
 }
 
@@ -458,6 +594,19 @@ private sealed interface MarkdownBlock {
         val alignments: List<TableAlign>,
         val rows: List<List<String>>,
     ) : MarkdownBlock
+    data class HtmlTable(
+        val rows: List<HtmlTableRow>,
+    ) : MarkdownBlock
+    data class HtmlTableRow(
+        val cells: List<HtmlTableCell>,
+    )
+    data class HtmlTableCell(
+        val text: String,
+        val imageUrl: String?,
+        val isHeader: Boolean,
+        val colspan: Int,
+        val align: TableAlign,
+    )
     data class Image(val alt: String, val url: String, val linkUrl: String? = null) : MarkdownBlock
     data class Code(val language: String, val code: String) : MarkdownBlock
     data object HorizontalRule : MarkdownBlock
@@ -486,11 +635,17 @@ private val unorderedListRegex = Regex("^(\\s*)[-*+]\\s*(.*)")
 private val fenceStart = Regex("^```(\\w*)")
 private val tableRowRegex = Regex("^\\|(.+)\\|\\s*$")
 private val tableSepRegex = Regex("^\\|[-:| ]+\\|\\s*$")
+private val htmlTableRowRegex = Regex("<tr\\b[^>]*>(.*?)</tr>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+private val htmlTableCellRegex = Regex("<(th|td)\\b([^>]*)>(.*?)</(?:th|td)>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+private val tableTagStartRegex = Regex("<table\\b", RegexOption.IGNORE_CASE)
+private val tableTagEndRegex = Regex("</table>", RegexOption.IGNORE_CASE)
+private val nonTableHtmlRegex = Regex("</?(?!table\\b|thead\\b|tbody\\b|tr\\b|th\\b|td\\b|img\\b)[A-Za-z][^>]*>", RegexOption.IGNORE_CASE)
+private val htmlColspanRegex = Regex("""colspan\s*=\s*"(\d+)"""", RegexOption.IGNORE_CASE)
+private val htmlAlignRegex = Regex("""align\s*=\s*"([^"]+)"""", RegexOption.IGNORE_CASE)
+private val htmlImageSrcRegex = Regex("""<img\b[^>]*src\s*=\s*"([^"]+)"""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
 
 private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
-    val text = raw
-        .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-        .replace(Regex("<[^>]+>"), "")
+    val text = raw.preprocessMarkdown()
 
     val blocks = mutableListOf<MarkdownBlock>()
     val lines = text.lines()
@@ -509,6 +664,19 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
             }
             blocks += MarkdownBlock.Code(lang, codeLines.joinToString("\n"))
             i++; continue
+        }
+
+        if (tableTagStartRegex.containsMatchIn(line)) {
+            val tableLines = mutableListOf(line)
+            while (i + 1 < lines.size && !tableTagEndRegex.containsMatchIn(tableLines.last())) {
+                i++
+                tableLines += lines[i]
+            }
+            parseHtmlTableBlock(tableLines.joinToString("\n"))?.let { tableBlock ->
+                blocks += tableBlock
+                i++
+                continue
+            }
         }
 
         // 표: 헤더 행 | 구분 행 | 데이터 행
@@ -714,11 +882,48 @@ private fun parseInline(text: String): AnnotatedString = buildAnnotatedString {
     }
 }
 
-/** HTML 전처리: <br> → 줄바꿈, 나머지 HTML 태그 제거 */
+/** HTML 전처리: 표 태그는 유지하고, <br> → 줄바꿈 및 기타 HTML 태그만 제거 */
 internal fun String.preprocessMarkdown(): String = this
     .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-    .replace(Regex("<[^>]+>"), "")
+    .replace(nonTableHtmlRegex, "")
     .trimEnd()
+
+private fun parseHtmlTableBlock(tableHtml: String): MarkdownBlock.HtmlTable? {
+    val rows = htmlTableRowRegex.findAll(tableHtml)
+        .map { rowMatch ->
+            htmlTableCellRegex.findAll(rowMatch.groupValues[1])
+                .map { cellMatch ->
+                    val tagName = cellMatch.groupValues[1]
+                    val attributes = cellMatch.groupValues[2]
+                    val cellHtml = cellMatch.groupValues[3]
+                    MarkdownBlock.HtmlTableCell(
+                        text = cellHtml.stripHtmlCellContent(),
+                        imageUrl = htmlImageSrcRegex.find(cellHtml)?.groupValues?.get(1),
+                        isHeader = tagName.equals("th", ignoreCase = true),
+                        colspan = htmlColspanRegex.find(attributes)?.groupValues?.get(1)?.toIntOrNull() ?: 1,
+                        align = htmlAlignRegex.find(attributes)?.groupValues?.get(1).toTableAlign(),
+                    )
+                }
+                .toList()
+            }
+            .filter { it.isNotEmpty() }
+            .toList()
+
+    if (rows.isEmpty()) return null
+    return MarkdownBlock.HtmlTable(rows = rows.map { MarkdownBlock.HtmlTableRow(it) })
+}
+
+private fun String.stripHtmlCellContent(): String = this
+    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+    .replace(Regex("<[^>]+>"), "")
+    .replace("&nbsp;", " ")
+    .trim()
+
+private fun String?.toTableAlign(): TableAlign = when (this?.lowercase()) {
+    "center" -> TableAlign.Center
+    "right", "end" -> TableAlign.End
+    else -> TableAlign.Start
+}
 
 private fun String.toVisibleImageCaption(): String? {
     val normalized = trim()
