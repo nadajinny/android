@@ -27,6 +27,9 @@ import com.example.crew_wiki.ui.common.CrewWikiTagChip
 @Composable
 fun DocumentDetailScreen(
     documentDetail: CrewWikiDocumentDetail,
+    onEditClick: () -> Unit = {},
+    onLogsClick: () -> Unit = {},
+    onWriteClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val uiState = rememberDocumentDetailUiState(documentDetail)
@@ -48,9 +51,9 @@ fun DocumentDetailScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.xl)) {
                     DocumentDetailHeader(
                         title = uiState.title,
-                        onEditClick = {},
-                        onLogsClick = {},
-                        onWriteClick = {},
+                        onEditClick = onEditClick,
+                        onLogsClick = onLogsClick,
+                        onWriteClick = onWriteClick,
                     )
                     TableOfContentsCard(sections = uiState.sections)
                     CrewSection(

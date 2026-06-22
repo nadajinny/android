@@ -19,10 +19,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
@@ -30,13 +33,25 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.crew_wiki.CrewWikiDesignTokens
-import com.example.crew_wiki.data.document.InMemoryDocumentRepository
+import com.example.crew_wiki.di.AppContainer
+import com.example.crew_wiki.ui.common.ErrorScreen
+import com.example.crew_wiki.ui.common.LoadingScreen
 import com.example.crew_wiki.ui.document.DocumentDetailScreen
+import com.example.crew_wiki.ui.document.DocumentDetailUiState
+import com.example.crew_wiki.ui.document.DocumentDetailViewModel
+import com.example.crew_wiki.ui.document.DocumentLogDetailScreen
+import com.example.crew_wiki.ui.document.DocumentLogDetailViewModel
+import com.example.crew_wiki.ui.document.DocumentLogsScreen
+import com.example.crew_wiki.ui.document.DocumentLogsViewModel
+import com.example.crew_wiki.ui.group.GroupDetailScreen
+import com.example.crew_wiki.ui.group.GroupDetailViewModel
+import com.example.crew_wiki.ui.popular.PopularDocumentsScreen
+import com.example.crew_wiki.ui.popular.PopularDocumentsViewModel
+import com.example.crew_wiki.ui.popular.PopularUiState
 
 @Composable
 fun CrewWikiNavRoot() {
     val navController = rememberNavController()
-    val documentRepository = remember { InMemoryDocumentRepository() }
 
     NavHost(
         navController = navController,
@@ -47,16 +62,183 @@ fun CrewWikiNavRoot() {
             .fillMaxSize(),
     ) {
         addHomeDestination(navController)
-        addStaticDestination<CrewWikiRoute.Popular>("인기 문서", "웹 화면을 대응시키기 위한 정적 목적지입니다.")
+        addPopularDestination(navController)
+        addDocumentDestinations(navController)
+        addGroupDestinations(navController)
         addStaticDestination<CrewWikiRoute.Statistics>("통계", "웹 화면을 대응시키기 위한 정적 목적지입니다.")
         addStaticDestination<CrewWikiRoute.Post>("문서 작성", "웹 화면을 대응시키기 위한 정적 목적지입니다.")
         addStaticDestination<CrewWikiRoute.AdminLogin>("관리자 로그인", "관리자 플로우를 별도 그래프로 분리할 후보 목적지입니다.")
         addStaticDestination<CrewWikiRoute.AdminDashboard>("관리자 대시보드", "관리자 플로우를 별도 그래프로 분리할 후보 목적지입니다.")
         addStaticDestination<CrewWikiRoute.AdminDocuments>("문서 관리", "관리자 플로우를 별도 그래프로 분리할 후보 목적지입니다.")
-        addDocumentDestinations(documentRepository)
-        addGroupDestinations()
     }
 }
+
+// ── Popular ───────────────────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addPopularDestination(navController: NavController) {
+    composable<CrewWikiRoute.Popular> {
+        val vm = viewModel<PopularDocumentsViewModel>(
+            factory = ViewModelProvider.Factory {
+                PopularDocumentsViewModel(AppContainer.documentRepository)
+            },
+        )
+        val uiState by vm.uiState.collectAsState()
+
+        when (val state = uiState) {
+            is PopularUiState.Loading -> LoadingScreen()
+            is PopularUiState.Error -> ErrorScreen(
+                message = state.message,
+                onRetry = vm::loadPopularDocuments,
+            )
+            is PopularUiState.Success -> PopularDocumentsScreen(
+                documentsByViews = state.documentsByViews,
+                documentsByEdits = state.documentsByEdits,
+                onDocumentClick = { doc ->
+                    navController.navigate(CrewWikiRoute.Document(doc.documentUUID))
+                },
+            )
+        }
+    }
+}
+
+// ── Document ──────────────────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addDocumentDestinations(navController: NavController) {
+    // 문서 상세
+    composable<CrewWikiRoute.Document> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.Document>()
+        val vm = viewModel<DocumentDetailViewModel>(
+            key = route.documentId,
+            factory = ViewModelProvider.Factory {
+                DocumentDetailViewModel(AppContainer.documentRepository, route.documentId)
+            },
+        )
+        val uiState by vm.uiState.collectAsState()
+
+        when (val state = uiState) {
+            is DocumentDetailUiState.Loading -> LoadingScreen()
+            is DocumentDetailUiState.NotFound -> PlaceholderScreen(
+                title = "문서를 찾을 수 없습니다",
+                route = "wiki/${route.documentId}",
+                description = "해당 UUID의 문서가 존재하지 않습니다.",
+            )
+            is DocumentDetailUiState.Error -> ErrorScreen(
+                message = state.message,
+                onRetry = vm::loadDocument,
+            )
+            is DocumentDetailUiState.Success -> DocumentDetailScreen(
+                documentDetail = state.detail,
+                onEditClick = { navController.navigate(CrewWikiRoute.DocumentEdit(route.documentId)) },
+                onLogsClick = { navController.navigate(CrewWikiRoute.DocumentLogs(route.documentId)) },
+                onWriteClick = { navController.navigate(CrewWikiRoute.Post) },
+            )
+        }
+    }
+
+    // 문서 수정 (Placeholder)
+    composable<CrewWikiRoute.DocumentEdit> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentEdit>()
+        PlaceholderScreen(
+            title = "문서 수정",
+            route = "wiki/${route.documentId}/edit",
+            description = "마크다운 에디터 화면입니다. 웹 TuiEditor에 대응합니다.",
+        )
+    }
+
+    // 편집 기록 목록
+    composable<CrewWikiRoute.DocumentLogs> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentLogs>()
+        val vm = viewModel<DocumentLogsViewModel>(
+            key = route.documentId,
+            factory = ViewModelProvider.Factory {
+                DocumentLogsViewModel(AppContainer.documentRepository, route.documentId)
+            },
+        )
+        DocumentLogsScreen(
+            viewModel = vm,
+            onLogClick = { logId ->
+                navController.navigate(CrewWikiRoute.DocumentLog(route.documentId, logId.toInt()))
+            },
+        )
+    }
+
+    // 편집 기록 상세
+    composable<CrewWikiRoute.DocumentLog> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentLog>()
+        val vm = viewModel<DocumentLogDetailViewModel>(
+            key = route.logId.toString(),
+            factory = ViewModelProvider.Factory {
+                DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong())
+            },
+        )
+        DocumentLogDetailScreen(viewModel = vm)
+    }
+}
+
+// ── Group ─────────────────────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
+    // 그룹 상세
+    composable<CrewWikiRoute.GroupDetail> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.GroupDetail>()
+        val vm = viewModel<GroupDetailViewModel>(
+            key = route.groupId,
+            factory = ViewModelProvider.Factory {
+                GroupDetailViewModel(AppContainer.groupDocumentRepository, route.groupId)
+            },
+        )
+        GroupDetailScreen(
+            viewModel = vm,
+            onCrewDocumentClick = { uuid ->
+                navController.navigate(CrewWikiRoute.Document(uuid))
+            },
+            onLogsClick = {
+                navController.navigate(CrewWikiRoute.GroupLogs(route.groupId))
+            },
+        )
+    }
+
+    // 그룹 수정 (Placeholder)
+    composable<CrewWikiRoute.GroupEdit> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.GroupEdit>()
+        PlaceholderScreen(
+            title = "그룹 수정",
+            route = "wiki/groups/${route.groupId}/edit",
+            description = "그룹 문서 편집 화면입니다.",
+        )
+    }
+
+    // 그룹 편집 기록 목록
+    composable<CrewWikiRoute.GroupLogs> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.GroupLogs>()
+        val vm = viewModel<DocumentLogsViewModel>(
+            key = "group-logs-${route.groupId}",
+            factory = ViewModelProvider.Factory {
+                DocumentLogsViewModel(AppContainer.documentRepository, route.groupId)
+            },
+        )
+        DocumentLogsScreen(
+            viewModel = vm,
+            onLogClick = { logId ->
+                navController.navigate(CrewWikiRoute.GroupLog(route.groupId, logId.toInt()))
+            },
+        )
+    }
+
+    // 그룹 편집 기록 상세
+    composable<CrewWikiRoute.GroupLog> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.GroupLog>()
+        val vm = viewModel<DocumentLogDetailViewModel>(
+            key = "group-log-${route.logId}",
+            factory = ViewModelProvider.Factory {
+                DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong())
+            },
+        )
+        DocumentLogDetailScreen(viewModel = vm)
+    }
+}
+
+// ── Home ──────────────────────────────────────────────────────────────────────
 
 private fun NavGraphBuilder.addHomeDestination(navController: NavController) {
     composable<CrewWikiRoute.Home> {
@@ -110,14 +292,13 @@ private fun NavGraphBuilder.addHomeDestination(navController: NavController) {
                 }
             }
             items(featureLinks) { (label, onClick) ->
-                RouteCard(
-                    title = label,
-                    onClick = onClick,
-                )
+                RouteCard(title = label, onClick = onClick)
             }
         }
     }
 }
+
+// ── 공통 컴포넌트 ──────────────────────────────────────────────────────────────
 
 private inline fun <reified T : Any> NavGraphBuilder.addStaticDestination(
     title: String,
@@ -132,159 +313,56 @@ private inline fun <reified T : Any> NavGraphBuilder.addStaticDestination(
     }
 }
 
-private fun NavGraphBuilder.addDocumentDestinations(
-    documentRepository: InMemoryDocumentRepository,
-) {
-    composable<CrewWikiRoute.Document> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.Document>()
-        val documentDetail = remember(route.documentId) {
-            documentRepository.getDocumentDetail(route.documentId)
-        }
-
-        if (documentDetail == null) {
-            PlaceholderScreen(
-                title = "문서 상세",
-                route = "wiki/document/${route.documentId}",
-                description = "해당 문서를 찾을 수 없습니다.",
-            )
-        } else {
-            DocumentDetailScreen(documentDetail = documentDetail)
-        }
-    }
-    composable<CrewWikiRoute.DocumentEdit> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentEdit>()
-        PlaceholderScreen(
-            title = "문서 수정",
-            route = "wiki/document/${route.documentId}/edit",
-            description = "조회 화면과 같은 식별자를 재사용하는 편이 자연스럽습니다.",
-        )
-    }
-    composable<CrewWikiRoute.DocumentLogs> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentLogs>()
-        PlaceholderScreen(
-            title = "문서 로그",
-            route = "wiki/document/${route.documentId}/logs",
-            description = "로그 목록은 문서 상세의 하위 흐름으로 두는 구조입니다.",
-        )
-    }
-    composable<CrewWikiRoute.DocumentLog> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentLog>()
-        PlaceholderScreen(
-            title = "문서 로그 상세",
-            route = "wiki/document/${route.documentId}/log/${route.logId}",
-            description = "문서 ID와 로그 ID를 함께 넘기는 상세 로그 목적지입니다.",
-        )
-    }
-}
-
-private fun NavGraphBuilder.addGroupDestinations() {
-    composable<CrewWikiRoute.GroupDetail> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.GroupDetail>()
-        PlaceholderScreen(
-            title = "그룹 상세",
-            route = "wiki/group/${route.groupId}",
-            description = "웹의 그룹 타임라인 화면에 대응하는 목적지입니다.",
-        )
-    }
-    composable<CrewWikiRoute.GroupEdit> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.GroupEdit>()
-        PlaceholderScreen(
-            title = "그룹 수정",
-            route = "wiki/group/${route.groupId}/edit",
-            description = "그룹 편집은 그룹 상세와 같은 식별자를 공유합니다.",
-        )
-    }
-    composable<CrewWikiRoute.GroupLogs> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.GroupLogs>()
-        PlaceholderScreen(
-            title = "그룹 로그",
-            route = "wiki/group/${route.groupId}/logs",
-            description = "그룹 로그 목록 목적지입니다.",
-        )
-    }
-    composable<CrewWikiRoute.GroupLog> { backStackEntry ->
-        val route = backStackEntry.toRoute<CrewWikiRoute.GroupLog>()
-        PlaceholderScreen(
-            title = "그룹 로그 상세",
-            route = "wiki/group/${route.groupId}/log/${route.logId}",
-            description = "그룹 로그 상세 목적지입니다.",
-        )
-    }
-}
-
 @Composable
-private fun RouteCard(
-    title: String,
-    onClick: () -> Unit,
-) {
+private fun RouteCard(title: String, onClick: () -> Unit) {
+    val colors = CrewWikiDesignTokens.colors
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = MaterialTheme.shapes.large,
-        border = BorderStroke(1.dp, CrewWikiDesignTokens.colors.primary.c100),
+        border = BorderStroke(1.dp, colors.primary.c100),
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = "이 목적지로 이동",
-                style = MaterialTheme.typography.bodyMedium,
-                color = CrewWikiDesignTokens.colors.grayscale.c500,
-            )
+            Text(text = title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = "이 목적지로 이동", style = MaterialTheme.typography.bodyMedium, color = colors.grayscale.c500)
         }
     }
 }
 
 @Composable
-private fun RouteChip(
-    label: String,
-    onClick: () -> Unit,
-) {
+private fun RouteChip(label: String, onClick: () -> Unit) {
+    val colors = CrewWikiDesignTokens.colors
     Card(
         modifier = Modifier
             .wrapContentHeight()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = CrewWikiDesignTokens.colors.primary.c50,
-        ),
+        colors = CardDefaults.cardColors(containerColor = colors.primary.c50),
         shape = MaterialTheme.shapes.medium,
     ) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             style = MaterialTheme.typography.labelLarge,
-            color = CrewWikiDesignTokens.colors.primary.c800,
+            color = colors.primary.c800,
         )
     }
 }
 
 @Composable
-private fun PlaceholderScreen(
-    title: String,
-    route: String,
-    description: String,
-) {
+private fun PlaceholderScreen(title: String, route: String, description: String) {
+    val colors = CrewWikiDesignTokens.colors
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        Text(text = title, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onBackground)
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = MaterialTheme.shapes.large,
@@ -298,19 +376,15 @@ private fun PlaceholderScreen(
                         text = "Route",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
-                        color = CrewWikiDesignTokens.colors.primary.base,
+                        color = colors.primary.base,
                     )
                     Text(
                         text = route,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = CrewWikiDesignTokens.colors.grayscale.c600,
+                        color = colors.grayscale.c600,
                     )
                 }
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Text(text = description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             }
         }
     }
