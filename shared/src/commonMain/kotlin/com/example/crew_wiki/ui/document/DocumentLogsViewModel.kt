@@ -56,7 +56,7 @@ class DocumentLogsViewModel(
 
     private suspend fun fetchPage(page: Int) {
         try {
-            val (logs, totalPage) = repository.fetchDocumentLogsByUUID(documentUUID, page, 10)
+            val (logs, totalPage) = repository.fetchDocumentLogs(documentUUID, page, 10)
             loadedLogs.addAll(logs)
             currentPage = page
             _uiState.value = DocumentLogsUiState.Success(

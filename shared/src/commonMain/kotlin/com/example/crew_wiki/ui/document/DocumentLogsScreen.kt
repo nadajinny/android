@@ -218,6 +218,8 @@ private fun String.formatDateTime(): String {
 
 // 바이트 → KB 표시
 private fun Long.toReadableSize(): String {
-    val kb = this / 1024.0
-    return if (kb < 1.0) "${this}B" else "${"%.1f".format(kb)}KB"
+    if (this < 1024) return "${this}B"
+    val kb = this / 1024
+    val remainder = (this % 1024) / 103  // ≈ 0.1 단위
+    return "${kb}.${remainder}KB"
 }

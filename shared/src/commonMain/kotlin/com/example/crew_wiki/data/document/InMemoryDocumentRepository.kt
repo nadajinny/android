@@ -169,16 +169,16 @@ class InMemoryDocumentRepository : DocumentRepository {
     private val documentsByUuid = documentDetails.associateBy { it.document.documentUUID }
 
     private val popularDocuments = listOf(
-        PopularDocument(id = 1, documentUUID = "sample-document", title = "비모", viewCount = 3221, editCount = 18),
-        PopularDocument(id = 2, documentUUID = "crew-woody", title = "우디", viewCount = 2980, editCount = 22),
-        PopularDocument(id = 3, documentUUID = "crew-sain", title = "세인", viewCount = 2844, editCount = 19),
-        PopularDocument(id = 4, documentUUID = "crew-judy", title = "주디", viewCount = 2601, editCount = 17),
-        PopularDocument(id = 5, documentUUID = "crew-river", title = "리버", viewCount = 2380, editCount = 15),
-        PopularDocument(id = 6, documentUUID = "crew-hazel", title = "헤이즐", viewCount = 2257, editCount = 21),
-        PopularDocument(id = 7, documentUUID = "crew-noel", title = "노엘", viewCount = 2108, editCount = 13),
-        PopularDocument(id = 8, documentUUID = "crew-summer", title = "서머", viewCount = 1980, editCount = 16),
-        PopularDocument(id = 9, documentUUID = "crew-dawn", title = "던", viewCount = 1844, editCount = 11),
-        PopularDocument(id = 10, documentUUID = "crew-mint", title = "민트", viewCount = 1705, editCount = 14),
+        PopularDocument(id = 1, documentUUID = "sample-document", title = "비모", viewCount = 3221),
+        PopularDocument(id = 2, documentUUID = "crew-woody", title = "우디", viewCount = 2980),
+        PopularDocument(id = 3, documentUUID = "crew-sain", title = "세인", viewCount = 2844),
+        PopularDocument(id = 4, documentUUID = "crew-judy", title = "주디", viewCount = 2601),
+        PopularDocument(id = 5, documentUUID = "crew-river", title = "리버", viewCount = 2380),
+        PopularDocument(id = 6, documentUUID = "crew-hazel", title = "헤이즐", viewCount = 2257),
+        PopularDocument(id = 7, documentUUID = "crew-noel", title = "노엘", viewCount = 2108),
+        PopularDocument(id = 8, documentUUID = "crew-summer", title = "서머", viewCount = 1980),
+        PopularDocument(id = 9, documentUUID = "crew-dawn", title = "던", viewCount = 1844),
+        PopularDocument(id = 10, documentUUID = "crew-mint", title = "민트", viewCount = 1705),
     )
 
     override fun getDocumentDetail(documentId: String): CrewWikiDocumentDetail? {
@@ -186,10 +186,7 @@ class InMemoryDocumentRepository : DocumentRepository {
     }
 
     override fun getPopularDocuments(sortType: PopularSortType): List<PopularDocument> {
-        return when (sortType) {
-            PopularSortType.VIEWS -> popularDocuments.sortedByDescending { it.viewCount }
-            PopularSortType.EDITS -> popularDocuments.sortedByDescending { it.editCount }
-        }
+        return popularDocuments.sortedByDescending { it.viewCount }
     }
 }
 
@@ -212,8 +209,9 @@ private fun sampleDocumentDetail(
             generateTime = "2026-06-22T10:54:00",
             organizations = organizations.mapIndexed { index, organization ->
                 OrganizationReference(
+                    organizationDocumentId = documentId * 100 + index + 1,
+                    organizationDocumentUuid = "organization-${documentId}-${index + 1}",
                     title = organization,
-                    uuid = "organization-${documentId}-${index + 1}",
                 )
             },
         ),

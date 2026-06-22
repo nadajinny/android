@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -78,8 +79,10 @@ fun CrewWikiNavRoot() {
 private fun NavGraphBuilder.addPopularDestination(navController: NavController) {
     composable<CrewWikiRoute.Popular> {
         val vm = viewModel<PopularDocumentsViewModel>(
-            factory = ViewModelProvider.Factory {
-                PopularDocumentsViewModel(AppContainer.documentRepository)
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    PopularDocumentsViewModel(AppContainer.documentRepository) as T
             },
         )
         val uiState by vm.uiState.collectAsState()
@@ -108,8 +111,10 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
         val route = backStackEntry.toRoute<CrewWikiRoute.Document>()
         val vm = viewModel<DocumentDetailViewModel>(
             key = route.documentId,
-            factory = ViewModelProvider.Factory {
-                DocumentDetailViewModel(AppContainer.documentRepository, route.documentId)
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    DocumentDetailViewModel(AppContainer.documentRepository, route.documentId) as T
             },
         )
         val uiState by vm.uiState.collectAsState()
@@ -149,8 +154,10 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
         val route = backStackEntry.toRoute<CrewWikiRoute.DocumentLogs>()
         val vm = viewModel<DocumentLogsViewModel>(
             key = route.documentId,
-            factory = ViewModelProvider.Factory {
-                DocumentLogsViewModel(AppContainer.documentRepository, route.documentId)
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    DocumentLogsViewModel(AppContainer.documentRepository, route.documentId) as T
             },
         )
         DocumentLogsScreen(
@@ -166,8 +173,10 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
         val route = backStackEntry.toRoute<CrewWikiRoute.DocumentLog>()
         val vm = viewModel<DocumentLogDetailViewModel>(
             key = route.logId.toString(),
-            factory = ViewModelProvider.Factory {
-                DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong())
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong()) as T
             },
         )
         DocumentLogDetailScreen(viewModel = vm)
@@ -182,8 +191,10 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
         val route = backStackEntry.toRoute<CrewWikiRoute.GroupDetail>()
         val vm = viewModel<GroupDetailViewModel>(
             key = route.groupId,
-            factory = ViewModelProvider.Factory {
-                GroupDetailViewModel(AppContainer.groupDocumentRepository, route.groupId)
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    GroupDetailViewModel(AppContainer.groupDocumentRepository, route.groupId) as T
             },
         )
         GroupDetailScreen(
@@ -212,8 +223,10 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
         val route = backStackEntry.toRoute<CrewWikiRoute.GroupLogs>()
         val vm = viewModel<DocumentLogsViewModel>(
             key = "group-logs-${route.groupId}",
-            factory = ViewModelProvider.Factory {
-                DocumentLogsViewModel(AppContainer.documentRepository, route.groupId)
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    DocumentLogsViewModel(AppContainer.documentRepository, route.groupId) as T
             },
         )
         DocumentLogsScreen(
@@ -229,8 +242,10 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
         val route = backStackEntry.toRoute<CrewWikiRoute.GroupLog>()
         val vm = viewModel<DocumentLogDetailViewModel>(
             key = "group-log-${route.logId}",
-            factory = ViewModelProvider.Factory {
-                DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong())
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong()) as T
             },
         )
         DocumentLogDetailScreen(viewModel = vm)

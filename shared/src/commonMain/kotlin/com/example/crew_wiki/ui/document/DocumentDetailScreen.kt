@@ -32,7 +32,7 @@ fun DocumentDetailScreen(
     onWriteClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val uiState = rememberDocumentDetailUiState(documentDetail)
+    val uiState: DocumentDetailScreenState = rememberDocumentDetailUiState(documentDetail)
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
 
@@ -217,7 +217,7 @@ private fun DocumentBody(
 }
 
 @Immutable
-private data class DocumentDetailUiState(
+private data class DocumentDetailScreenState(
     val title: String,
     val relatedCrewNames: List<String>,
     val lastEditedLabel: String,
@@ -232,7 +232,7 @@ private data class DocumentSectionUiModel(
 )
 
 @Composable
-private fun rememberDocumentDetailUiState(documentDetail: CrewWikiDocumentDetail): DocumentDetailUiState {
+private fun rememberDocumentDetailUiState(documentDetail: CrewWikiDocumentDetail): DocumentDetailScreenState {
     return remember(documentDetail) {
         val document = documentDetail.document
 
