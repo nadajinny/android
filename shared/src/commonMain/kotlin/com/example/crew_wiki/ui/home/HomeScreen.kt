@@ -21,11 +21,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.crew_wiki.CrewWikiDesignTokens
+import com.example.crew_wiki.model.CrewWikiDocumentDetail
 import com.example.crew_wiki.model.RecentDocument
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
+import com.example.crew_wiki.ui.document.MarkdownContent
+import com.example.crew_wiki.ui.document.preprocessMarkdown
 
 @Composable
 fun HomeScreen(
+    mainDocument: CrewWikiDocumentDetail?,
     recentDocuments: List<RecentDocument>,
     onDocumentClick: (RecentDocument) -> Unit,
     onPopularClick: () -> Unit,
@@ -40,6 +44,25 @@ fun HomeScreen(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // ── 대문 ──────────────────────────────────────────────────────────────
+        if (mainDocument != null) {
+            item {
+                CrewWikiSurfaceSection(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                ) {
+                    val content = mainDocument.document.contents.preprocessMarkdown()
+                    if (content.isNotBlank()) {
+                        MarkdownContent(
+                            content = content,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+
         // ── 빠른 이동 ──────────────────────────────────────────────────────────
         item {
             Row(
