@@ -12,14 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,33 +28,21 @@ import com.example.crew_wiki.model.LinkedCrewDocument
 import com.example.crew_wiki.model.OrganizationEvent
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.CrewWikiTagChip
-import com.example.crew_wiki.ui.common.ErrorScreen
-import com.example.crew_wiki.ui.common.LoadingScreen
 import com.example.crew_wiki.ui.document.parseGroupSections
 
 @Composable
 fun GroupDetailScreen(
-    viewModel: GroupDetailViewModel,
+    detail: GroupDocumentDetail,
     onCrewDocumentClick: (uuid: String) -> Unit,
     onLogsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    when (val state = uiState) {
-        is GroupDetailUiState.Loading -> LoadingScreen(modifier)
-        is GroupDetailUiState.Error -> ErrorScreen(
-            message = state.message,
-            onRetry = viewModel::loadGroupDocument,
-            modifier = modifier,
-        )
-        is GroupDetailUiState.Success -> GroupDetailContent(
-            detail = state.detail,
-            onCrewDocumentClick = onCrewDocumentClick,
-            onLogsClick = onLogsClick,
-            modifier = modifier,
-        )
-    }
+    GroupDetailContent(
+        detail = detail,
+        onCrewDocumentClick = onCrewDocumentClick,
+        onLogsClick = onLogsClick,
+        modifier = modifier,
+    )
 }
 
 @Composable

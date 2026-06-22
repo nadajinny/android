@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -127,16 +129,20 @@ private fun DocumentLogsContent(
             )
         }
 
+        // web: gap-4 flex-col
         LazyColumn(
             state = listState,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item { Spacer(Modifier.height(4.dp)) }
             items(state.logs) { log ->
                 DocumentLogItem(
                     log = log,
                     onClick = { onLogClick(log.id) },
                 )
-                Divider(color = colors.grayscale.c100)
             }
 
             if (state.isLoadingMore) {
@@ -147,9 +153,7 @@ private fun DocumentLogsContent(
                             .padding(16.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator(
-                            color = colors.primary.base,
-                        )
+                        CircularProgressIndicator(color = colors.primary.base)
                     }
                 }
             }
@@ -159,6 +163,7 @@ private fun DocumentLogsContent(
     }
 }
 
+// web: LogContent - rounded-2xl border border-primary-100
 @Composable
 private fun DocumentLogItem(
     log: DocumentLogSummary,
@@ -166,42 +171,54 @@ private fun DocumentLogItem(
 ) {
     val colors = CrewWikiDesignTokens.colors
 
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, colors.primary.c100),
     ) {
-        Text(
-            text = "v${log.version}",
-            modifier = Modifier.weight(0.15f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.primary.base,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = log.generateTime.formatDateTime(),
-            modifier = Modifier.weight(0.4f),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.grayscale.c600,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = log.documentBytes.toReadableSize(),
-            modifier = Modifier.weight(0.25f),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.grayscale.c600,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = log.writer,
-            modifier = Modifier.weight(0.2f),
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.grayscale.c800,
-            textAlign = TextAlign.Center,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 버전
+            Text(
+                text = "${log.version}",
+                modifier = Modifier.weight(0.15f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.grayscale.c800,
+                textAlign = TextAlign.Center,
+            )
+            // 생성일시
+            Text(
+                text = log.generateTime.formatDateTime(),
+                modifier = Modifier.weight(0.45f),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.grayscale.c800,
+                textAlign = TextAlign.Center,
+            )
+            // 문서 크기
+            Text(
+                text = "${log.documentBytes}B",
+                modifier = Modifier.weight(0.2f),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.grayscale.c800,
+                textAlign = TextAlign.Center,
+            )
+            // 편집자
+            Text(
+                text = log.writer,
+                modifier = Modifier.weight(0.2f),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.grayscale.c800,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
