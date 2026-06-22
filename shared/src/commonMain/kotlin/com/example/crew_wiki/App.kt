@@ -17,7 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.painterResource
 
 import crewwiki.shared.generated.resources.Res
-import crewwiki.shared.generated.resources.compose_multiplatform
+import crewwiki.shared.generated.resources.crew_wiki_apple_icon
 
 @Composable
 @Preview
@@ -40,7 +40,7 @@ fun App() {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
+                    Image(painterResource(Res.drawable.crew_wiki_apple_icon), null)
                     Text("Compose: $greeting")
                 }
             }
