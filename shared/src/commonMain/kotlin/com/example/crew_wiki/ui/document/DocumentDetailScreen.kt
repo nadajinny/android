@@ -70,7 +70,7 @@ fun DocumentDetailScreen(
                     .padding(horizontal = 16.dp),
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
                     // 제목
