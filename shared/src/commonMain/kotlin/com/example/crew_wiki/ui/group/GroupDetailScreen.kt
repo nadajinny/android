@@ -3,6 +3,7 @@ package com.example.crew_wiki.ui.group
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -29,10 +30,12 @@ import com.example.crew_wiki.ui.common.CrewWikiActionButton
 import com.example.crew_wiki.ui.common.CrewWikiActionButtonStyle
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.CrewWikiTagChip
+import com.example.crew_wiki.ui.document.preprocessMarkdown
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GroupDetailScreen(
     detail: GroupDocumentDetail,
@@ -79,10 +82,12 @@ fun GroupDetailScreen(
                         )
                     }
 
-                    // 본문 마크다운
-                    if (detail.contents.isNotBlank()) {
+                    // 본문 마크다운 — fillMaxWidth() 필수
+                    val content = detail.contents.preprocessMarkdown()
+                    if (content.isNotBlank()) {
                         Markdown(
-                            content = detail.contents,
+                            content = content,
+                            modifier = Modifier.fillMaxWidth(),
                             colors = markdownColor(
                                 text = colors.grayscale.text,
                                 codeText = MaterialTheme.colorScheme.onSurfaceVariant,

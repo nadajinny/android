@@ -2,6 +2,7 @@ package com.example.crew_wiki.ui.document
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -31,7 +32,7 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 
-// web: DocumentPage + DocumentHeader + DocumentContents + DocumentFooter
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DocumentDetailScreen(
     documentDetail: CrewWikiDocumentDetail,
@@ -50,7 +51,6 @@ fun DocumentDetailScreen(
         verticalArrangement = Arrangement.spacedBy(spacing.md),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
-        // 메인 카드
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -61,7 +61,7 @@ fun DocumentDetailScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
-                    // 헤더 - web: flex justify-between
+                    // 헤더
                     DocumentDetailHeader(
                         title = document.title,
                         onEditClick = onEditClick,
@@ -69,7 +69,7 @@ fun DocumentDetailScreen(
                         onWriteClick = onWriteClick,
                     )
 
-                    // 소속 섹션 - web: OrganizationSection
+                    // 소속 섹션
                     if (document.organizations.isNotEmpty()) {
                         OrganizationSection(
                             organizations = document.organizations,
@@ -77,10 +77,12 @@ fun DocumentDetailScreen(
                         )
                     }
 
-                    // 본문 마크다운 - web: toastui-editor-contents
-                    if (document.contents.isNotBlank()) {
+                    // 본문 마크다운 — fillMaxWidth() 필수 (LazyColumn 내 무한 width 방지)
+                    val content = document.contents.preprocessMarkdown()
+                    if (content.isNotBlank()) {
                         Markdown(
-                            content = document.contents,
+                            content = content,
+                            modifier = Modifier.fillMaxWidth(),
                             colors = markdownColor(
                                 text = colors.grayscale.text,
                                 codeText = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -103,7 +105,15 @@ fun DocumentDetailScreen(
 
                     // 연관 크루 문서
                     if (documentDetail.relatedCrewDocuments.isNotEmpty()) {
-                        LinkedCrewSection(crews = documentDetail.relatedCrewDocuments.map { it.title })
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            documentDetail.relatedCrewDocuments.forEach { crew ->
+                                CrewWikiTagChip(text = crew.title)
+                            }
+                        }
                     }
                 }
             }
@@ -146,7 +156,6 @@ fun DocumentDetailScreen(
     }
 }
 
-// web: DocumentHeader — flex justify-between
 @Composable
 private fun DocumentDetailHeader(
     title: String,
@@ -177,7 +186,7 @@ private fun DocumentDetailHeader(
     }
 }
 
-// web: OrganizationSection
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun OrganizationSection(
     organizations: List<OrganizationReference>,
@@ -196,6 +205,7 @@ private fun OrganizationSection(
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             organizations.forEach { org ->
                 CrewWikiTagChip(
@@ -207,20 +217,18 @@ private fun OrganizationSection(
     }
 }
 
-// web: CrewMemberSection
-@Composable
-private fun LinkedCrewSection(crews: List<String>) {
-    val spacing = CrewWikiDesignTokens.spacing
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(spacing.sm),
-    ) {
-        crews.forEach { crew -> CrewWikiTagChip(text = crew) }
-    }
-}
-
 // "2026-06-22T10:54:00" → "2026년 6월 22일"
 internal fun formatDocDate(raw: String): String = try {
     val parts = raw.substringBefore("T").split("-")
     "${parts[0]}년 ${parts[1].trimStart('0')}월 ${parts[2].trimStart('0')}일"
 } catch (_: Exception) { raw }
+
+/**
+ * iOS Metal 렌더러 크래시 방지:
+ * - <br>, <br/> → 빈 줄 (마크다운 단락 구분)
+ * - 기타 HTML 인라인 태그 제거
+ */
+internal fun String.preprocessMarkdown(): String = this
+    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
+    .replace(Regex("<[^>]+>"), "")  // 처리되지 않은 HTML 태그 제거
+    .trimEnd()

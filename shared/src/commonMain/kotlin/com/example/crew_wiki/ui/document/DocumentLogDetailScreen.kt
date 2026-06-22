@@ -84,9 +84,11 @@ private fun DocumentLogDetailContent(
                     )
 
                     // 본문 마크다운
-                    if (log.contents.isNotBlank()) {
+                    val content = log.contents.preprocessMarkdown()
+                    if (content.isNotBlank()) {
                         Markdown(
-                            content = log.contents,
+                            content = content,
+                            modifier = Modifier.fillMaxWidth(),
                             colors = markdownColor(
                                 text = colors.grayscale.text,
                                 codeText = MaterialTheme.colorScheme.onSurfaceVariant,
