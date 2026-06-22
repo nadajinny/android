@@ -167,7 +167,7 @@ fun CrewWikiNavRoot() {
 private fun NavGraphBuilder.addHomeDestination(navController: NavController) {
     composable<CrewWikiRoute.Home> {
         val vm = viewModel<HomeViewModel>(
-            factory = vmFactory { HomeViewModel(AppContainer.documentApiService, AppContainer.documentRepository) },
+            factory = vmFactory { HomeViewModel(AppContainer.documentRepository) },
         )
         val uiState by vm.uiState.collectAsState()
 
@@ -175,19 +175,10 @@ private fun NavGraphBuilder.addHomeDestination(navController: NavController) {
             is HomeUiState.Loading -> LoadingScreen()
             is HomeUiState.Error -> ErrorScreen(
                 message = state.message,
-                onRetry = vm::loadRecentDocuments,
+                onRetry = vm::loadMainDocument,
             )
             is HomeUiState.Success -> HomeScreen(
                 mainDocument = state.mainDocument,
-                recentDocuments = state.recentDocuments,
-                onDocumentClick = { doc ->
-                    if (doc.documentType == "ORGANIZATION") {
-                        navController.navigate(CrewWikiRoute.GroupDetail(doc.uuid))
-                    } else {
-                        navController.navigate(CrewWikiRoute.Document(doc.uuid))
-                    }
-                },
-                onPopularClick = { navController.navigate(CrewWikiRoute.Popular) },
             )
         }
     }
