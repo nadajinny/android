@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.AnnotatedString
@@ -156,47 +159,39 @@ fun MarkdownContent(
 
 // ── 표 렌더러 ──────────────────────────────────────────────────────────────────
 
+private val TableBorderColor = Color(0xFF1A1A1A)
+private val TableLabelBackground = Color(0xFF1A1A1A)
+private val TableLabelTextColor = Color.White
+private val TableValueBackground = Color.White
+private val TableValueTextColor = Color(0xFF1A1A1A)
+private val TableOuterShape = RoundedCornerShape(16.dp)
+
 @Composable
 private fun MarkdownTable(table: MarkdownBlock.Table) {
-    val colors = CrewWikiDesignTokens.colors
-    val borderColor = colors.primary.c100
-    val headerBg = colors.primary.c50
     val colCount = table.headers.size
-    val rowCount = table.rows.size + 1 // 헤더 행 포함
+    // 마크다운 문법상 첫 행은 헤더로 파싱되지만, 라벨/값 카드 스타일에서는
+    // 모든 행을 동일하게 "1열 = 라벨, 나머지 열 = 값"으로 취급한다.
+    val allRows = listOf(table.headers) + table.rows
+    val rowCount = allRows.size
 
     // 열 수가 많을 수 있으므로 가로 스크롤 지원
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .border(1.dp, borderColor, MaterialTheme.shapes.small),
+            .clip(TableOuterShape)
+            .border(1.5.dp, TableBorderColor, TableOuterShape),
     ) {
         TableGrid(
             colCount = colCount,
             rowCount = rowCount,
         ) {
-            // 헤더 행
-            table.headers.forEachIndexed { colIdx, header ->
-                TableCell(
-                    text = parseInline(header.trim()),
-                    isHeader = true,
-                    align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
-                    modifier = Modifier
-                        .background(headerBg)
-                        .border(width = 1.dp, color = borderColor),
-                )
-            }
-            // 데이터 행 — 짝/홀수 행 배경 구분
-            table.rows.forEachIndexed { rowIdx, row ->
+            allRows.forEach { row ->
                 (0 until colCount).forEach { colIdx ->
                     val cell = row.getOrElse(colIdx) { "" }
                     TableCell(
                         text = parseInline(cell.trim()),
-                        isHeader = false,
-                        align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
-                        modifier = Modifier
-                            .background(if (rowIdx % 2 == 0) Color.Transparent else colors.grayscale.c50)
-                            .border(width = 1.dp, color = borderColor),
+                        isLabelColumn = colIdx == 0,
                     )
                 }
             }
@@ -254,25 +249,22 @@ private fun TableGrid(
 @Composable
 private fun TableCell(
     text: AnnotatedString,
-    isHeader: Boolean,
-    align: TableAlign,
-    modifier: Modifier = Modifier,
+    isLabelColumn: Boolean,
 ) {
-    val colors = CrewWikiDesignTokens.colors
-    Text(
-        text = text,
-        style = if (isHeader)
-            MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-        else
-            MaterialTheme.typography.bodyMedium,
-        color = colors.grayscale.c800,
-        textAlign = when (align) {
-            TableAlign.Center -> TextAlign.Center
-            TableAlign.End -> TextAlign.End
-            else -> TextAlign.Start
-        },
-        modifier = modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-    )
+    Box(
+        modifier = Modifier
+            .background(if (isLabelColumn) TableLabelBackground else TableValueBackground)
+            .border(width = 1.dp, color = TableBorderColor),
+        contentAlignment = if (isLabelColumn) Alignment.Center else Alignment.CenterStart,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+            color = if (isLabelColumn) TableLabelTextColor else TableValueTextColor,
+            textAlign = if (isLabelColumn) TextAlign.Center else TextAlign.Start,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+        )
+    }
 }
 
 // ── 블록 타입 ──────────────────────────────────────────────────────────────────
