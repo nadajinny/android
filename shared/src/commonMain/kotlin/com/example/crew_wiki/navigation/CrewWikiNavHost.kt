@@ -11,6 +11,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -83,6 +86,16 @@ fun CrewWikiNavRoot() {
     val coroutineScope = rememberCoroutineScope()
     var shuffleLoading by remember { mutableStateOf(false) }
     val colors = CrewWikiDesignTokens.colors
+    val defaultUriHandler = LocalUriHandler.current
+    val internalUriHandler = remember(navController, defaultUriHandler) {
+        object : UriHandler {
+            override fun openUri(uri: String) {
+                if (!navController.navigateCrewWikiLink(uri)) {
+                    defaultUriHandler.openUri(uri)
+                }
+            }
+        }
+    }
 
     val currentRoute = backStackEntry?.destination?.route ?: ""
     val bottomTabs = remember {
@@ -96,74 +109,162 @@ fun CrewWikiNavRoot() {
     // 하단 탭 화면에서는 뒤로가기 버튼 대신 탭 자체를 보여주고, 그 외 화면(문서 상세 등)에서만 뒤로가기 표시
     val isTopLevelTab = bottomTabs.any { currentRoute.contains(it.routeMatcher) } || currentRoute.isEmpty()
 
-    Scaffold(
-        topBar = {
-            CrewWikiTopBar(
-                showBack = !isTopLevelTab,
-                onBack = { navController.popBackStack() },
-                onShuffle = {
-                    if (!shuffleLoading) {
-                        coroutineScope.launch {
-                            shuffleLoading = true
-                            try {
-                                val randomDoc = AppContainer.documentApiService.getRandomDocument()
-                                navController.navigate(CrewWikiRoute.Document(randomDoc.documentUUID))
-                            } catch (_: Exception) {
-                                // 실패 시 무시
-                            } finally {
-                                shuffleLoading = false
+    CompositionLocalProvider(LocalUriHandler provides internalUriHandler) {
+        Scaffold(
+            topBar = {
+                CrewWikiTopBar(
+                    showBack = !isTopLevelTab,
+                    onBack = { navController.popBackStack() },
+                    onShuffle = {
+                        if (!shuffleLoading) {
+                            coroutineScope.launch {
+                                shuffleLoading = true
+                                try {
+                                    val randomDoc = AppContainer.documentApiService.getRandomDocument()
+                                    navController.navigate(CrewWikiRoute.Document(randomDoc.documentUUID))
+                                } catch (_: Exception) {
+                                    // 실패 시 무시
+                                } finally {
+                                    shuffleLoading = false
+                                }
                             }
                         }
+                    },
+                    shuffleLoading = shuffleLoading,
+                    onSearch = { navController.navigate(CrewWikiRoute.Search) },
+                )
+            },
+            bottomBar = {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    bottomTabs.forEach { tab ->
+                        val selected = currentRoute.contains(tab.routeMatcher)
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(tab.route) {
+                                    popUpTo(CrewWikiRoute.Home) { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                            },
+                            icon = { tab.icon(if (selected) colors.primary.base else colors.grayscale.c500) },
+                            label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedTextColor = colors.primary.base,
+                                unselectedTextColor = colors.grayscale.c500,
+                                indicatorColor = colors.primary.c50,
+                            ),
+                        )
                     }
-                },
-                shuffleLoading = shuffleLoading,
-                onSearch = { navController.navigate(CrewWikiRoute.Search) },
-            )
-        },
-        bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                bottomTabs.forEach { tab ->
-                    val selected = currentRoute.contains(tab.routeMatcher)
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(tab.route) {
-                                popUpTo(CrewWikiRoute.Home) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        icon = { tab.icon(if (selected) colors.primary.base else colors.grayscale.c500) },
-                        label = { Text(tab.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedTextColor = colors.primary.base,
-                            unselectedTextColor = colors.grayscale.c500,
-                            indicatorColor = colors.primary.c50,
-                        ),
-                    )
                 }
+            },
+            modifier = Modifier.fillMaxSize(),
+        ) { paddingValues ->
+            NavHost(
+                navController = navController,
+                startDestination = CrewWikiRoute.Home,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+                    .padding(paddingValues),
+            ) {
+                addHomeDestination(navController)
+                addPopularDestination(navController)
+                addDocumentDestinations(navController)
+                addGroupDestinations(navController)
+                addSearchDestination(navController)
+                addRecentEditsDestination(navController)
+                addRecentlyViewedDestination(navController)
+                addSettingsDestination()
             }
-        },
-        modifier = Modifier.fillMaxSize(),
-    ) { paddingValues ->
-        NavHost(
-            navController = navController,
-            startDestination = CrewWikiRoute.Home,
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .fillMaxSize()
-                .padding(paddingValues),
-        ) {
-            addHomeDestination(navController)
-            addPopularDestination(navController)
-            addDocumentDestinations(navController)
-            addGroupDestinations(navController)
-            addSearchDestination(navController)
-            addRecentEditsDestination(navController)
-            addRecentlyViewedDestination(navController)
-            addSettingsDestination()
         }
     }
 }
+
+private fun NavController.navigateCrewWikiLink(uri: String): Boolean {
+    val path = uri.toCrewWikiPath() ?: return false
+
+    return when {
+        path == "/wiki/post" -> {
+            navigate(CrewWikiRoute.Post) { launchSingleTop = true }
+            true
+        }
+
+        groupLogPathRegex.matches(path) -> {
+            val match = groupLogPathRegex.matchEntire(path) ?: return false
+            val groupId = match.groupValues[1]
+            val logId = match.groupValues[2].toIntOrNull() ?: return false
+            navigate(CrewWikiRoute.GroupLog(groupId, logId)) { launchSingleTop = true }
+            true
+        }
+
+        groupLogsPathRegex.matches(path) -> {
+            val groupId = groupLogsPathRegex.matchEntire(path)?.groupValues?.get(1) ?: return false
+            navigate(CrewWikiRoute.GroupLogs(groupId)) { launchSingleTop = true }
+            true
+        }
+
+        groupEditPathRegex.matches(path) -> {
+            val groupId = groupEditPathRegex.matchEntire(path)?.groupValues?.get(1) ?: return false
+            navigate(CrewWikiRoute.GroupEdit(groupId)) { launchSingleTop = true }
+            true
+        }
+
+        groupPathRegex.matches(path) -> {
+            val groupId = groupPathRegex.matchEntire(path)?.groupValues?.get(1) ?: return false
+            navigate(CrewWikiRoute.GroupDetail(groupId)) { launchSingleTop = true }
+            true
+        }
+
+        documentLogPathRegex.matches(path) -> {
+            val match = documentLogPathRegex.matchEntire(path) ?: return false
+            val documentId = match.groupValues[1]
+            val logId = match.groupValues[2].toIntOrNull() ?: return false
+            navigate(CrewWikiRoute.DocumentLog(documentId, logId)) { launchSingleTop = true }
+            true
+        }
+
+        documentLogsPathRegex.matches(path) -> {
+            val documentId = documentLogsPathRegex.matchEntire(path)?.groupValues?.get(1) ?: return false
+            navigate(CrewWikiRoute.DocumentLogs(documentId)) { launchSingleTop = true }
+            true
+        }
+
+        documentEditPathRegex.matches(path) -> {
+            val documentId = documentEditPathRegex.matchEntire(path)?.groupValues?.get(1) ?: return false
+            navigate(CrewWikiRoute.DocumentEdit(documentId)) { launchSingleTop = true }
+            true
+        }
+
+        documentPathRegex.matches(path) -> {
+            val documentId = documentPathRegex.matchEntire(path)?.groupValues?.get(1) ?: return false
+            navigate(CrewWikiRoute.Document(documentId)) { launchSingleTop = true }
+            true
+        }
+
+        else -> false
+    }
+}
+
+private fun String.toCrewWikiPath(): String? {
+    val normalized = substringBefore('#').substringBefore('?')
+    return when {
+        normalized.startsWith("/wiki") -> normalized
+        normalized.startsWith("https://crew-wiki.site/wiki") -> normalized.removePrefix("https://crew-wiki.site")
+        normalized.startsWith("http://crew-wiki.site/wiki") -> normalized.removePrefix("http://crew-wiki.site")
+        normalized.startsWith("https://www.crew-wiki.site/wiki") -> normalized.removePrefix("https://www.crew-wiki.site")
+        normalized.startsWith("http://www.crew-wiki.site/wiki") -> normalized.removePrefix("http://www.crew-wiki.site")
+        else -> null
+    }
+}
+
+private val documentPathRegex = Regex("^/wiki/([A-Za-z0-9-]+)$")
+private val documentEditPathRegex = Regex("^/wiki/([A-Za-z0-9-]+)/edit$")
+private val documentLogsPathRegex = Regex("^/wiki/([A-Za-z0-9-]+)/logs$")
+private val documentLogPathRegex = Regex("^/wiki/([A-Za-z0-9-]+)/log/(\\d+)$")
+private val groupPathRegex = Regex("^/wiki/groups/([A-Za-z0-9-]+)$")
+private val groupEditPathRegex = Regex("^/wiki/groups/([A-Za-z0-9-]+)/edit$")
+private val groupLogsPathRegex = Regex("^/wiki/groups/([A-Za-z0-9-]+)/logs$")
+private val groupLogPathRegex = Regex("^/wiki/groups/([A-Za-z0-9-]+)/log/(\\d+)$")
 
 // ── Home ──────────────────────────────────────────────────────────────────────
 
