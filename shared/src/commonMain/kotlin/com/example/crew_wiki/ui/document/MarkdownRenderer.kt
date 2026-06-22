@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -335,12 +335,11 @@ private fun MarkdownBlockQuote(
 
 // ── 표 렌더러 ──────────────────────────────────────────────────────────────────
 
-private val TableBorderColor = Color(0xFF1A1A1A)
-private val TableLabelBackground = Color(0xFF1A1A1A)
+private val TableBorderColor = Color(0x1A000000)
+private val TableLabelBackground = Color(0xFF555555)
 private val TableLabelTextColor = Color.White
 private val TableValueBackground = Color.White
-private val TableValueTextColor = Color(0xFF1A1A1A)
-private val TableOuterShape = RoundedCornerShape(16.dp)
+private val TableValueTextColor = Color(0xFF222222)
 
 @Composable
 private fun MarkdownTable(table: MarkdownBlock.Table) {
@@ -355,8 +354,8 @@ private fun MarkdownTable(table: MarkdownBlock.Table) {
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .clip(TableOuterShape)
-            .border(1.5.dp, TableBorderColor, TableOuterShape),
+            .background(TableValueBackground)
+            .border(1.dp, TableBorderColor),
     ) {
         TableGrid(
             colCount = colCount,
@@ -429,16 +428,19 @@ private fun TableCell(
 ) {
     Box(
         modifier = Modifier
+            .defaultMinSize(minHeight = 72.dp)
             .background(if (isLabelColumn) TableLabelBackground else TableValueBackground)
             .border(width = 1.dp, color = TableBorderColor),
         contentAlignment = if (isLabelColumn) Alignment.Center else Alignment.CenterStart,
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = if (isLabelColumn) FontWeight.SemiBold else FontWeight.Bold,
+            ),
             color = if (isLabelColumn) TableLabelTextColor else TableValueTextColor,
             textAlign = if (isLabelColumn) TextAlign.Center else TextAlign.Start,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
         )
     }
 }
