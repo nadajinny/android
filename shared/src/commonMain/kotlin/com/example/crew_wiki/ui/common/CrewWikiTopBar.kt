@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -84,6 +85,7 @@ fun CrewWikiTopBar(
 
         Text(
             text = "크루위키",
+            style = MaterialTheme.typography.titleLarge,
             color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,

@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,6 +80,7 @@ fun SearchScreen(
                 if (query.isEmpty()) {
                     Text(
                         text = "문서 검색",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 14.sp,
                     )
@@ -89,7 +91,7 @@ fun SearchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    textStyle = androidx.compose.ui.text.TextStyle(
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
                         color = Color.White,
                         fontSize = 14.sp,
                     ),
@@ -119,6 +121,7 @@ fun SearchScreen(
                 ) {
                     Text(
                         text = "검색어를 입력하세요",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = colors.grayscale.lightText,
                         fontSize = 14.sp,
                     )
@@ -141,6 +144,7 @@ fun SearchScreen(
                 ) {
                     Text(
                         text = state.message,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = colors.error.base,
                         fontSize = 14.sp,
                     )
@@ -155,6 +159,7 @@ fun SearchScreen(
                     ) {
                         Text(
                             text = "검색 결과가 없습니다",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = colors.grayscale.lightText,
                             fontSize = 14.sp,
                         )
@@ -191,6 +196,7 @@ private fun SearchResultItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = doc.title,
+                style = MaterialTheme.typography.bodyMedium,
                 color = colors.grayscale.text,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
@@ -198,6 +204,7 @@ private fun SearchResultItem(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (doc.documentType == "ORGANIZATION") "조직 문서" else "일반 문서",
+                style = MaterialTheme.typography.bodySmall,
                 color = colors.grayscale.lightText,
                 fontSize = 12.sp,
             )
