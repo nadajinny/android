@@ -2,6 +2,7 @@ package com.example.crew_wiki.ui.document
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -51,6 +53,7 @@ fun MarkdownContent(
     val blocks = parseMarkdownBlocks(content)
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
+    val uriHandler = LocalUriHandler.current
 
     Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
@@ -85,7 +88,16 @@ fun MarkdownContent(
                     AsyncImage(
                         model = block.url,
                         contentDescription = imageCaption,
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .then(
+                                if (block.linkUrl != null) {
+                                    Modifier.clickable { uriHandler.openUri(block.linkUrl) }
+                                } else {
+                                    Modifier
+                                },
+                            ),
                     )
                     if (imageCaption != null) {
                         Spacer(Modifier.height(4.dp))
@@ -367,7 +379,7 @@ private sealed interface MarkdownBlock {
         val alignments: List<TableAlign>,
         val rows: List<List<String>>,
     ) : MarkdownBlock
-    data class Image(val alt: String, val url: String) : MarkdownBlock
+    data class Image(val alt: String, val url: String, val linkUrl: String? = null) : MarkdownBlock
     data class Code(val language: String, val code: String) : MarkdownBlock
     data object HorizontalRule : MarkdownBlock
     data class ListItem(val ordered: Boolean, val order: Int, val annotated: AnnotatedString) : MarkdownBlock
@@ -377,7 +389,6 @@ private sealed interface MarkdownBlock {
 // ── 파서 ───────────────────────────────────────────────────────────────────────
 
 private val headingRegex = Regex("^(#{1,6})\\s+(.*)")
-private val imageRegex = Regex("!\\[([^]]*)]\\(([^)]+)\\)")
 private val hrRegex = Regex("^[-*_]{3,}\\s*$")
 private val orderedListRegex = Regex("^(\\d+)\\.\\s+(.*)")
 private val unorderedListRegex = Regex("^[-*+]\\s+(.*)")
@@ -422,10 +433,9 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
             continue
         }
 
-        // 이미지
-        val imgMatch = imageRegex.find(line)
-        if (imgMatch != null && line.trim().startsWith("!")) {
-            blocks += MarkdownBlock.Image(imgMatch.groupValues[1], imgMatch.groupValues[2])
+        // 이미지 / 링크가 걸린 이미지
+        parseImageBlock(line.trim())?.let { imageBlock ->
+            blocks += imageBlock
             i++; continue
         }
 
@@ -571,4 +581,86 @@ private fun String.toVisibleImageCaption(): String? {
     if (normalized.isBlank()) return null
     if (normalized.equals("image", ignoreCase = true)) return null
     return normalized
+}
+
+private fun parseImageBlock(line: String): MarkdownBlock.Image? {
+    if (line.startsWith("![")) {
+        val image = parseMarkdownImage(line) ?: return null
+        if (image.nextIndex != line.length) return null
+        return MarkdownBlock.Image(
+            alt = image.alt,
+            url = image.url,
+        )
+    }
+
+    if (line.startsWith("[![")) {
+        val linkCloseBracket = findMatchingBracket(line, 0) ?: return null
+        val linkCloseParen = if (linkCloseBracket + 1 < line.length && line[linkCloseBracket + 1] == '(') {
+            findMatchingParen(line, linkCloseBracket + 1)
+        } else {
+            null
+        } ?: return null
+
+        val inner = line.substring(1, linkCloseBracket)
+        val image = parseMarkdownImage(inner) ?: return null
+        if (image.nextIndex != inner.length) return null
+
+        return MarkdownBlock.Image(
+            alt = image.alt,
+            url = image.url,
+            linkUrl = line.substring(linkCloseBracket + 2, linkCloseParen),
+        )
+    }
+
+    return null
+}
+
+private data class ParsedMarkdownImage(
+    val alt: String,
+    val url: String,
+    val nextIndex: Int,
+)
+
+private fun parseMarkdownImage(text: String, startIndex: Int = 0): ParsedMarkdownImage? {
+    if (!text.startsWith("![", startIndex)) return null
+
+    val closeBracket = findMatchingBracket(text, startIndex + 1) ?: return null
+    if (closeBracket + 1 >= text.length || text[closeBracket + 1] != '(') return null
+
+    val closeParen = findMatchingParen(text, closeBracket + 1) ?: return null
+    return ParsedMarkdownImage(
+        alt = text.substring(startIndex + 2, closeBracket),
+        url = text.substring(closeBracket + 2, closeParen),
+        nextIndex = closeParen + 1,
+    )
+}
+
+private fun findMatchingBracket(text: String, openIndex: Int): Int? {
+    if (openIndex !in text.indices || text[openIndex] != '[') return null
+    var depth = 0
+    for (index in openIndex until text.length) {
+        when (text[index]) {
+            '[' -> depth++
+            ']' -> {
+                depth--
+                if (depth == 0) return index
+            }
+        }
+    }
+    return null
+}
+
+private fun findMatchingParen(text: String, openIndex: Int): Int? {
+    if (openIndex !in text.indices || text[openIndex] != '(') return null
+    var depth = 0
+    for (index in openIndex until text.length) {
+        when (text[index]) {
+            '(' -> depth++
+            ')' -> {
+                depth--
+                if (depth == 0) return index
+            }
+        }
+    }
+    return null
 }
