@@ -56,20 +56,11 @@ fun MarkdownContent(
         blocks.forEachIndexed { index, block ->
             when (block) {
                 is MarkdownBlock.Heading -> {
-                    if (index > 0) Spacer(Modifier.height(spacing.lg))
-                    Text(
+                    MarkdownHeading(
                         text = block.text,
-                        style = when (block.level) {
-                            1 -> MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
-                            2 -> MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                            3 -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                            4 -> MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                            else -> MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                        },
-                        color = colors.grayscale.c800,
-                        modifier = Modifier.fillMaxWidth(),
+                        level = block.level,
+                        isFirstBlock = index == 0,
                     )
-                    Spacer(Modifier.height(spacing.sm))
                 }
 
                 is MarkdownBlock.Paragraph -> {
@@ -126,7 +117,7 @@ fun MarkdownContent(
 
                 is MarkdownBlock.HorizontalRule -> {
                     Spacer(Modifier.height(spacing.md))
-                    HorizontalDivider(color = colors.grayscale.c200)
+                    HorizontalDivider(color = Color(0xFFEEEEEE))
                     Spacer(Modifier.height(spacing.md))
                 }
 
@@ -155,6 +146,102 @@ fun MarkdownContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MarkdownHeading(
+    text: String,
+    level: Int,
+    isFirstBlock: Boolean,
+) {
+    val colors = CrewWikiDesignTokens.colors
+
+    when (level) {
+        1 -> {
+            Spacer(Modifier.height(if (isFirstBlock) 14.dp else 52.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = colors.grayscale.c800,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(7.dp))
+            DoubleHorizontalDivider(
+                primaryColor = Color(0xFF999999),
+                secondaryColor = Color(0xFF999999),
+            )
+            Spacer(Modifier.height(15.dp))
+        }
+
+        2 -> {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = colors.grayscale.c800,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(7.dp))
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFFDBDBDB),
+            )
+            Spacer(Modifier.height(13.dp))
+        }
+
+        3 -> {
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = colors.grayscale.c800,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(2.dp))
+        }
+
+        4 -> {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = colors.grayscale.c800,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(2.dp))
+        }
+
+        else -> {
+            Spacer(Modifier.height(9.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = colors.grayscale.c800,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+    }
+}
+
+@Composable
+private fun DoubleHorizontalDivider(
+    primaryColor: Color,
+    secondaryColor: Color,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            thickness = 1.dp,
+            color = primaryColor,
+        )
+        Spacer(Modifier.height(1.dp))
+        HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(),
+            thickness = 1.dp,
+            color = secondaryColor,
+        )
     }
 }
 
