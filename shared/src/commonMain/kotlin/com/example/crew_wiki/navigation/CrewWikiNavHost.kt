@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.crew_wiki.CrewWikiDesignTokens
+import com.example.crew_wiki.ui.document.DocumentDetailScreen
 
 @Composable
 fun CrewWikiNavRoot() {
@@ -131,11 +132,7 @@ private inline fun <reified T : Any> NavGraphBuilder.addStaticDestination(
 private fun NavGraphBuilder.addDocumentDestinations() {
     composable<CrewWikiRoute.Document> { backStackEntry ->
         val route = backStackEntry.toRoute<CrewWikiRoute.Document>()
-        PlaceholderScreen(
-            title = "문서 상세",
-            route = "wiki/document/${route.documentId}",
-            description = "문서 조회가 1순위 구현 대상입니다. 최소 파라미터는 documentId 하나로 유지합니다.",
-        )
+        DocumentDetailScreen(documentId = route.documentId)
     }
     composable<CrewWikiRoute.DocumentEdit> { backStackEntry ->
         val route = backStackEntry.toRoute<CrewWikiRoute.DocumentEdit>()
