@@ -10,9 +10,7 @@ import com.example.crew_wiki.navigation.CrewWikiNavRoot
 fun App() {
     // Coil3 싱글톤 초기화 (네트워크 이미지 로딩)
     setSingletonImageLoaderFactory { context ->
-        coil3.ImageLoader.Builder(context)
-            .crossfade(true)
-            .build()
+        coil3.ImageLoader.Builder(context).build()
     }
 
     CrewWikiTheme {
