@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 sealed interface PopularUiState {
     data object Loading : PopularUiState
     data class Success(
-        val documentsByViews: List<PopularDocument>,
-        val documentsByEdits: List<PopularDocument>,
+        // Swagger: editCount 미제공 → viewCount 기준 단일 목록
+        val documents: List<PopularDocument>,
     ) : PopularUiState
     data class Error(val message: String) : PopularUiState
 }
@@ -34,12 +34,8 @@ class PopularDocumentsViewModel(
         viewModelScope.launch {
             _uiState.value = PopularUiState.Loading
             try {
-                val byViews = repository.fetchPopularDocuments(PopularSortType.VIEWS)
-                val byEdits = repository.fetchPopularDocuments(PopularSortType.EDITS)
-                _uiState.value = PopularUiState.Success(
-                    documentsByViews = byViews,
-                    documentsByEdits = byEdits,
-                )
+                val docs = repository.fetchPopularDocuments(PopularSortType.VIEWS)
+                _uiState.value = PopularUiState.Success(documents = docs)
             } catch (e: Exception) {
                 _uiState.value = PopularUiState.Error(e.message ?: "알 수 없는 오류가 발생했습니다.")
             }

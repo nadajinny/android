@@ -8,6 +8,7 @@ import com.example.crew_wiki.network.GroupApiService
 class GroupDocumentRepository(
     private val apiService: GroupApiService,
 ) {
+    // GET /organization/uuid/{uuidText}
     suspend fun fetchGroupDocumentByUUID(uuid: String): GroupDocumentDetail {
         val dto = apiService.getGroupDocumentByUUID(uuid)
         return GroupDocumentDetail(
@@ -17,19 +18,19 @@ class GroupDocumentRepository(
             contents = dto.contents,
             writer = dto.writer,
             generateTime = dto.generateTime,
-            events = dto.organizationEventResponses.map { event ->
+            events = dto.organizationEventResponses.map { e ->
                 OrganizationEvent(
-                    organizationEventUuid = event.organizationEventUuid,
-                    title = event.title,
-                    contents = event.contents,
-                    writer = event.writer,
-                    occurredAt = event.occurredAt,
+                    organizationEventUuid = e.organizationEventUuid,
+                    title = e.title,
+                    contents = e.contents,
+                    writer = e.writer,
+                    occurredAt = e.occurredAt,   // yyyy-MM-dd
                 )
             },
-            linkedCrewDocuments = dto.linkedCrewDocuments.map { crew ->
+            linkedCrewDocuments = dto.linkedCrewDocuments.map { c ->
                 LinkedCrewDocument(
-                    documentUuid = crew.documentUuid,
-                    title = crew.title,
+                    documentUuid = c.documentUuid,
+                    title = c.title,
                 )
             },
         )

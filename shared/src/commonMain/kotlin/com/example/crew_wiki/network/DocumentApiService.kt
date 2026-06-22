@@ -1,11 +1,13 @@
 package com.example.crew_wiki.network
 
 import com.example.crew_wiki.network.dto.ApiResponse
-import com.example.crew_wiki.network.dto.DocumentLogDetailDto
-import com.example.crew_wiki.network.dto.DocumentLogSummaryDto
-import com.example.crew_wiki.network.dto.ExpandedDocumentDto
-import com.example.crew_wiki.network.dto.PaginationResponseDto
-import com.example.crew_wiki.network.dto.WikiDocumentDto
+import com.example.crew_wiki.network.dto.DocumentListResponseDto
+import com.example.crew_wiki.network.dto.DocumentResponseDto
+import com.example.crew_wiki.network.dto.DocumentSearchResponseDto
+import com.example.crew_wiki.network.dto.HistoryDetailResponseDto
+import com.example.crew_wiki.network.dto.HistoryResponseDto
+import com.example.crew_wiki.network.dto.OrganizationDocumentSearchResponseDto
+import com.example.crew_wiki.network.dto.PagedResponseDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -13,54 +15,63 @@ import io.ktor.client.request.parameter
 
 class DocumentApiService(private val client: HttpClient) {
 
-    // GET /document/uuid/{uuid}
-    suspend fun getDocumentByUUID(uuid: String): WikiDocumentDto {
-        val response = client.get("$BASE_URL/document/uuid/$uuid")
-        return response.body<ApiResponse<WikiDocumentDto>>().data
-    }
+    // GET /document/uuid/{uuidText}
+    suspend fun getDocumentByUUID(uuid: String): DocumentResponseDto =
+        client.get("$BASE_URL/document/uuid/$uuid")
+            .body<ApiResponse<DocumentResponseDto>>().data
 
-    // GET /document/uuid/{uuid}/log
-    suspend fun getDocumentLogsByUUID(
-        uuid: String,
-        pageNumber: Int = 0,
-        pageSize: Int = 10,
-    ): PaginationResponseDto<DocumentLogSummaryDto> {
-        val response = client.get("$BASE_URL/document/uuid/$uuid/log") {
-            parameter("pageNumber", pageNumber)
-            parameter("pageSize", pageSize)
-            parameter("sort", "id")
-            parameter("sortDirection", "DESC")
-        }
-        return response.body<ApiResponse<PaginationResponseDto<DocumentLogSummaryDto>>>().data
-    }
+    // GET /document/title/{title}
+    suspend fun getDocumentByTitle(title: String): DocumentResponseDto =
+        client.get("$BASE_URL/document/title/$title")
+            .body<ApiResponse<DocumentResponseDto>>().data
 
-    // GET /document/log/{logId}
-    suspend fun getDocumentLog(logId: Long): DocumentLogDetailDto {
-        val response = client.get("$BASE_URL/document/log/$logId")
-        return response.body<ApiResponse<DocumentLogDetailDto>>().data
-    }
+    // GET /document/random
+    suspend fun getRandomDocument(): DocumentResponseDto =
+        client.get("$BASE_URL/document/random")
+            .body<ApiResponse<DocumentResponseDto>>().data
 
-    // GET /document  (정렬 기준으로 인기 문서 조회)
+    // GET /document  (페이지네이션 + 정렬)
     suspend fun getDocuments(
         pageNumber: Int = 0,
         pageSize: Int = 10,
         sort: String = "viewCount",
         sortDirection: String = "DESC",
-    ): PaginationResponseDto<ExpandedDocumentDto> {
-        val response = client.get("$BASE_URL/document") {
+    ): PagedResponseDto<DocumentListResponseDto> =
+        client.get("$BASE_URL/document") {
             parameter("pageNumber", pageNumber)
             parameter("pageSize", pageSize)
             parameter("sort", sort)
             parameter("sortDirection", sortDirection)
-        }
-        return response.body<ApiResponse<PaginationResponseDto<ExpandedDocumentDto>>>().data
-    }
+        }.body<ApiResponse<PagedResponseDto<DocumentListResponseDto>>>().data
+
+    // GET /document/uuid/{uuidText}/log
+    suspend fun getDocumentLogs(
+        uuid: String,
+        pageNumber: Int = 0,
+        pageSize: Int = 10,
+    ): PagedResponseDto<HistoryResponseDto> =
+        client.get("$BASE_URL/document/uuid/$uuid/log") {
+            parameter("pageNumber", pageNumber)
+            parameter("pageSize", pageSize)
+            parameter("sort", "id")
+            parameter("sortDirection", "DESC")
+        }.body<ApiResponse<PagedResponseDto<HistoryResponseDto>>>().data
+
+    // GET /document/log/{logId}
+    suspend fun getDocumentLog(logId: Long): HistoryDetailResponseDto =
+        client.get("$BASE_URL/document/log/$logId")
+            .body<ApiResponse<HistoryDetailResponseDto>>().data
 
     // GET /document/search?keyWord=
-    suspend fun searchDocuments(keyword: String): List<WikiDocumentDto> {
-        val response = client.get("$BASE_URL/document/search") {
+    suspend fun searchDocuments(keyword: String): List<DocumentSearchResponseDto> =
+        client.get("$BASE_URL/document/search") {
             parameter("keyWord", keyword)
-        }
-        return response.body<ApiResponse<List<WikiDocumentDto>>>().data
-    }
+        }.body<ApiResponse<List<DocumentSearchResponseDto>>>().data
+
+    // GET /document/{uuidText}/organization-documents
+    suspend fun getOrganizationDocumentsByDocumentUUID(
+        uuid: String,
+    ): List<OrganizationDocumentSearchResponseDto> =
+        client.get("$BASE_URL/document/$uuid/organization-documents")
+            .body<ApiResponse<List<OrganizationDocumentSearchResponseDto>>>().data
 }

@@ -8,12 +8,21 @@ enum class DocumentType {
     ORGANIZATION,
 }
 
+/**
+ * 문서에 연결된 조직(그룹) 문서 참조
+ * Swagger: OrganizationDocumentResponse
+ */
 @Serializable
 data class OrganizationReference(
+    val organizationDocumentId: Long,
+    val organizationDocumentUuid: String,
     val title: String,
-    val uuid: String,
 )
 
+/**
+ * 크루 문서
+ * Swagger: DocumentResponse
+ */
 @Serializable
 data class CrewWikiDocument(
     val documentId: Long,
@@ -22,48 +31,16 @@ data class CrewWikiDocument(
     val contents: String,
     val writer: String,
     val generateTime: String,
+    val viewCount: Int = 0,
+    val latestVersion: Long = 0,
     val organizations: List<OrganizationReference> = emptyList(),
 )
 
 @Serializable
-data class LatestCrewWikiDocument(
+data class CrewWikiDocumentDetail(
     val document: CrewWikiDocument,
-    val latestVersion: Int,
-)
-
-@Serializable
-data class WriteDocumentContent(
-    val title: String,
-    val contents: String,
-    val writer: String,
-    val documentBytes: Long,
-)
-
-@Serializable
-data class DocumentLogSummary(
-    val id: Long,
-    val title: String,
-    val version: Int,
-    val writer: String,
-    val documentBytes: Long,
-    val generateTime: String,
-)
-
-@Serializable
-data class DocumentLogDetail(
-    val contents: String,
-    val generateTime: String,
-    val logId: Long,
-    val title: String,
-    val writer: String,
-)
-
-@Serializable
-data class PopularDocument(
-    val id: Long,
-    val title: String,
-    val viewCount: Int,
-    val editCount: Int,
+    // 조직 문서에서 linkedCrewDocuments로 조회되는 연관 크루 문서
+    val relatedCrewDocuments: List<RelatedCrewDocument> = emptyList(),
 )
 
 @Serializable
@@ -72,44 +49,47 @@ data class RelatedCrewDocument(
     val title: String,
 )
 
+/**
+ * 편집 기록 목록 항목
+ * Swagger: HistoryResponse
+ */
 @Serializable
-data class CrewWikiDocumentDetail(
-    val document: CrewWikiDocument,
-    val relatedCrewDocuments: List<RelatedCrewDocument> = emptyList(),
+data class DocumentLogSummary(
+    val id: Long,
+    val title: String,
+    val version: Long,        // Swagger: int64
+    val writer: String,
+    val documentBytes: Long,
+    val generateTime: String,
+)
+
+/**
+ * 편집 기록 상세
+ * Swagger: HistoryDetailResponse
+ */
+@Serializable
+data class DocumentLogDetail(
+    val logId: Long,
+    val title: String,
+    val contents: String,
+    val writer: String,
+    val generateTime: String,
+)
+
+/**
+ * 인기 문서 (GET /document 정렬 결과)
+ * Swagger: DocumentListResponse — editCount 없음
+ */
+@Serializable
+data class PopularDocument(
+    val id: Long,
+    val documentUUID: String,
+    val title: String,
+    val viewCount: Int,
 )
 
 @Serializable
 enum class PopularSortType {
     VIEWS,
-    EDITS,
+    // EDITS: 서버 API에 editCount 미제공 → 조회수 정렬로 대체
 }
-
-@Serializable
-data class ExpandedDocument(
-    val id: Long,
-    val uuid: String,
-    val title: String,
-    val contents: String,
-    val writer: String,
-    val generateTime: String,
-    val documentBytes: Long,
-    val viewCount: Int,
-    val documentType: DocumentType,
-    val organizations: List<OrganizationReference> = emptyList(),
-)
-
-@Serializable
-data class PostDocumentBody(
-    val title: String,
-    val contents: String,
-    val writer: String,
-    val documentBytes: Long,
-    val uuid: String,
-)
-
-@Serializable
-data class PostDocumentContent(
-    val body: PostDocumentBody,
-    val newOrganizations: List<OrganizationReference> = emptyList(),
-    val existingOrganizations: List<OrganizationReference> = emptyList(),
-)

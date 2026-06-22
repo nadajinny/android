@@ -91,8 +91,7 @@ private fun NavGraphBuilder.addPopularDestination(navController: NavController) 
                 onRetry = vm::loadPopularDocuments,
             )
             is PopularUiState.Success -> PopularDocumentsScreen(
-                documentsByViews = state.documentsByViews,
-                documentsByEdits = state.documentsByEdits,
+                documents = state.documents,
                 onDocumentClick = { doc ->
                     navController.navigate(CrewWikiRoute.Document(doc.documentUUID))
                 },

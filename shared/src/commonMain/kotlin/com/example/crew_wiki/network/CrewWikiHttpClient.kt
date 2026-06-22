@@ -8,7 +8,7 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-const val BASE_URL = "http://3.35.253.192:8080"
+const val BASE_URL = "https://api.crew-wiki.site"
 
 fun createCrewWikiHttpClient(): HttpClient = HttpClient {
     install(ContentNegotiation) {
