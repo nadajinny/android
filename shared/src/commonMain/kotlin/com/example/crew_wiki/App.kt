@@ -22,7 +22,7 @@ import crewwiki.shared.generated.resources.compose_multiplatform
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
+    CrewWikiTheme {
         var showContent by remember { mutableStateOf(false) }
         Column(
             modifier = Modifier

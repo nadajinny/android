@@ -1,5 +1,7 @@
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
+Asset migration notes for `crew-wiki-next` are in [./docs/asset-migration.md](./docs/asset-migration.md).
+
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
 
