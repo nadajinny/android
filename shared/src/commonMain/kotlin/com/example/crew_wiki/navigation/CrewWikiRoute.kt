@@ -46,6 +46,15 @@ object CrewWikiRoute {
     )
 
     @Serializable
+    data object RecentEdits
+
+    @Serializable
+    data object RecentlyViewed
+
+    @Serializable
+    data object Settings
+
+    @Serializable
     data object Search
 
     @Serializable

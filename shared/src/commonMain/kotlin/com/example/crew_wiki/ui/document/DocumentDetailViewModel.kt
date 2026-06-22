@@ -3,7 +3,9 @@ package com.example.crew_wiki.ui.document
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.crew_wiki.data.document.NetworkDocumentRepository
+import com.example.crew_wiki.data.history.RecentlyViewedStore
 import com.example.crew_wiki.model.CrewWikiDocumentDetail
+import com.example.crew_wiki.model.RecentDocument
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,14 @@ class DocumentDetailViewModel(
             try {
                 val detail = repository.fetchDocumentByUUID(documentUUID)
                 _uiState.value = DocumentDetailUiState.Success(detail)
+                RecentlyViewedStore.record(
+                    RecentDocument(
+                        uuid = detail.document.documentUUID,
+                        title = detail.document.title,
+                        generateTime = detail.document.generateTime,
+                        documentType = "CREW",
+                    ),
+                )
             } catch (e: Exception) {
                 _uiState.value = DocumentDetailUiState.Error(e.message ?: "문서를 불러올 수 없습니다.")
             }

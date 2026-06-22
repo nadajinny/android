@@ -3,8 +3,13 @@ package com.example.crew_wiki.navigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -24,10 +30,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.crew_wiki.CrewWikiDesignTokens
+import com.example.crew_wiki.data.history.RecentlyViewedStore
 import com.example.crew_wiki.di.AppContainer
 import com.example.crew_wiki.ui.common.CrewWikiTopBar
 import com.example.crew_wiki.ui.common.ErrorScreen
+import com.example.crew_wiki.ui.common.EyeNavIcon
+import com.example.crew_wiki.ui.common.HistoryNavIcon
+import com.example.crew_wiki.ui.common.HomeNavIcon
 import com.example.crew_wiki.ui.common.LoadingScreen
+import com.example.crew_wiki.ui.common.SettingsNavIcon
 import com.example.crew_wiki.ui.document.DocumentDetailScreen
 import com.example.crew_wiki.ui.document.DocumentDetailUiState
 import com.example.crew_wiki.ui.document.DocumentDetailViewModel
@@ -38,6 +50,10 @@ import com.example.crew_wiki.ui.document.DocumentLogsViewModel
 import com.example.crew_wiki.ui.group.GroupDetailScreen
 import com.example.crew_wiki.ui.group.GroupDetailUiState
 import com.example.crew_wiki.ui.group.GroupDetailViewModel
+import com.example.crew_wiki.ui.history.RecentEditsScreen
+import com.example.crew_wiki.ui.history.RecentEditsUiState
+import com.example.crew_wiki.ui.history.RecentEditsViewModel
+import com.example.crew_wiki.ui.history.RecentlyViewedScreen
 import com.example.crew_wiki.ui.home.HomeScreen
 import com.example.crew_wiki.ui.home.HomeUiState
 import com.example.crew_wiki.ui.home.HomeViewModel
@@ -46,8 +62,16 @@ import com.example.crew_wiki.ui.popular.PopularDocumentsViewModel
 import com.example.crew_wiki.ui.popular.PopularUiState
 import com.example.crew_wiki.ui.search.SearchScreen
 import com.example.crew_wiki.ui.search.SearchViewModel
+import com.example.crew_wiki.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
+
+private data class BottomNavTab(
+    val route: Any,
+    val label: String,
+    val routeMatcher: String,
+    val icon: @Composable (androidx.compose.ui.graphics.Color) -> Unit,
+)
 
 @Composable
 fun CrewWikiNavRoot() {
@@ -55,15 +79,24 @@ fun CrewWikiNavRoot() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val coroutineScope = rememberCoroutineScope()
     var shuffleLoading by remember { mutableStateOf(false) }
+    val colors = CrewWikiDesignTokens.colors
 
-    // Home이 아닌 화면에서 뒤로가기 버튼 표시
     val currentRoute = backStackEntry?.destination?.route ?: ""
-    val isHome = currentRoute.contains("Home") || currentRoute.isEmpty()
+    val bottomTabs = remember {
+        listOf(
+            BottomNavTab(CrewWikiRoute.Home, "홈", "Home") { tint -> HomeNavIcon(tint, Modifier.size(22.dp)) },
+            BottomNavTab(CrewWikiRoute.RecentEdits, "최근 편집", "RecentEdits") { tint -> HistoryNavIcon(tint, Modifier.size(22.dp)) },
+            BottomNavTab(CrewWikiRoute.RecentlyViewed, "최근 확인", "RecentlyViewed") { tint -> EyeNavIcon(tint, Modifier.size(22.dp)) },
+            BottomNavTab(CrewWikiRoute.Settings, "설정", "Settings") { tint -> SettingsNavIcon(tint, Modifier.size(22.dp)) },
+        )
+    }
+    // 하단 탭 화면에서는 뒤로가기 버튼 대신 탭 자체를 보여주고, 그 외 화면(문서 상세 등)에서만 뒤로가기 표시
+    val isTopLevelTab = bottomTabs.any { currentRoute.contains(it.routeMatcher) } || currentRoute.isEmpty()
 
     Scaffold(
         topBar = {
             CrewWikiTopBar(
-                showBack = !isHome,
+                showBack = !isTopLevelTab,
                 onBack = { navController.popBackStack() },
                 onShuffle = {
                     if (!shuffleLoading) {
@@ -84,6 +117,29 @@ fun CrewWikiNavRoot() {
                 onSearch = { navController.navigate(CrewWikiRoute.Search) },
             )
         },
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                bottomTabs.forEach { tab ->
+                    val selected = currentRoute.contains(tab.routeMatcher)
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = {
+                            navController.navigate(tab.route) {
+                                popUpTo(CrewWikiRoute.Home) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        icon = { tab.icon(if (selected) colors.primary.base else colors.grayscale.c500) },
+                        label = { Text(tab.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedTextColor = colors.primary.base,
+                            unselectedTextColor = colors.grayscale.c500,
+                            indicatorColor = colors.primary.c50,
+                        ),
+                    )
+                }
+            }
+        },
         modifier = Modifier.fillMaxSize(),
     ) { paddingValues ->
         NavHost(
@@ -99,6 +155,9 @@ fun CrewWikiNavRoot() {
             addDocumentDestinations(navController)
             addGroupDestinations(navController)
             addSearchDestination(navController)
+            addRecentEditsDestination(navController)
+            addRecentlyViewedDestination(navController)
+            addSettingsDestination()
         }
     }
 }
@@ -108,7 +167,7 @@ fun CrewWikiNavRoot() {
 private fun NavGraphBuilder.addHomeDestination(navController: NavController) {
     composable<CrewWikiRoute.Home> {
         val vm = viewModel<HomeViewModel>(
-            factory = vmFactory { HomeViewModel(AppContainer.documentApiService) },
+            factory = vmFactory { HomeViewModel(AppContainer.documentApiService, AppContainer.documentRepository) },
         )
         val uiState by vm.uiState.collectAsState()
 
@@ -119,6 +178,7 @@ private fun NavGraphBuilder.addHomeDestination(navController: NavController) {
                 onRetry = vm::loadRecentDocuments,
             )
             is HomeUiState.Success -> HomeScreen(
+                mainDocument = state.mainDocument,
                 recentDocuments = state.recentDocuments,
                 onDocumentClick = { doc ->
                     if (doc.documentType == "ORGANIZATION") {
@@ -314,6 +374,61 @@ private fun NavGraphBuilder.addSearchDestination(navController: NavController) {
                 }
             },
         )
+    }
+}
+
+// ── 최근 편집 ─────────────────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addRecentEditsDestination(navController: NavController) {
+    composable<CrewWikiRoute.RecentEdits> {
+        val vm = viewModel<RecentEditsViewModel>(
+            factory = vmFactory { RecentEditsViewModel(AppContainer.documentApiService) },
+        )
+        val uiState by vm.uiState.collectAsState()
+
+        when (val state = uiState) {
+            is RecentEditsUiState.Loading -> LoadingScreen()
+            is RecentEditsUiState.Error -> ErrorScreen(
+                message = state.message,
+                onRetry = vm::loadRecentEdits,
+            )
+            is RecentEditsUiState.Success -> RecentEditsScreen(
+                documents = state.documents,
+                onDocumentClick = { doc ->
+                    if (doc.documentType == "ORGANIZATION") {
+                        navController.navigate(CrewWikiRoute.GroupDetail(doc.uuid))
+                    } else {
+                        navController.navigate(CrewWikiRoute.Document(doc.uuid))
+                    }
+                },
+            )
+        }
+    }
+}
+
+// ── 내가 최근에 확인한 문서 ─────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addRecentlyViewedDestination(navController: NavController) {
+    composable<CrewWikiRoute.RecentlyViewed> {
+        val documents by RecentlyViewedStore.viewedDocuments.collectAsState()
+        RecentlyViewedScreen(
+            documents = documents,
+            onDocumentClick = { doc ->
+                if (doc.documentType == "ORGANIZATION") {
+                    navController.navigate(CrewWikiRoute.GroupDetail(doc.uuid))
+                } else {
+                    navController.navigate(CrewWikiRoute.Document(doc.uuid))
+                }
+            },
+        )
+    }
+}
+
+// ── 설정 ──────────────────────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addSettingsDestination() {
+    composable<CrewWikiRoute.Settings> {
+        SettingsScreen()
     }
 }
 
