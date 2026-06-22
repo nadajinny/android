@@ -1,15 +1,19 @@
 package com.example.crew_wiki.ui.document
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,17 +26,16 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.crew_wiki.CrewWikiDesignTokens
 
 /**
- * KMP iOS 안전 마크다운 렌더러.
- * 외부 라이브러리(mikepenz) 대신 직접 구현하여 iOS SIGABRT 방지.
- * 지원: h1~h3, 단락, **bold**, *italic*, `code`, 이미지, 수평선, 순서/비순서 목록, <br>
+ * KMP iOS 안전 마크다운 렌더러 (자체 구현)
+ * 지원: h1~h6, 단락, 표, **bold**, *italic*, `code`, 이미지, 수평선, 순서/비순서 목록, <br>
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MarkdownContent(
     content: String,
@@ -42,9 +45,7 @@ fun MarkdownContent(
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
             when (block) {
                 is MarkdownBlock.Heading -> {
@@ -54,7 +55,9 @@ fun MarkdownContent(
                         style = when (block.level) {
                             1 -> MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                             2 -> MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                            else -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                            3 -> MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                            4 -> MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            else -> MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                         },
                         color = colors.grayscale.c800,
                         modifier = Modifier.fillMaxWidth(),
@@ -72,14 +75,18 @@ fun MarkdownContent(
                     )
                 }
 
+                is MarkdownBlock.Table -> {
+                    if (index > 0) Spacer(Modifier.height(spacing.md))
+                    MarkdownTable(table = block)
+                    Spacer(Modifier.height(spacing.md))
+                }
+
                 is MarkdownBlock.Image -> {
                     if (index > 0) Spacer(Modifier.height(spacing.md))
                     AsyncImage(
                         model = block.url,
                         contentDescription = block.alt,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
                     )
                     if (block.alt.isNotBlank()) {
                         Spacer(Modifier.height(4.dp))
@@ -97,17 +104,12 @@ fun MarkdownContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.shapes.small,
-                            )
+                            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small)
                             .padding(12.dp),
                     ) {
                         Text(
                             text = block.code,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                            ),
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -148,11 +150,126 @@ fun MarkdownContent(
     }
 }
 
+// ── 표 렌더러 ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun MarkdownTable(table: MarkdownBlock.Table) {
+    val colors = CrewWikiDesignTokens.colors
+    val borderColor = colors.primary.c100
+    val headerBg = colors.primary.c50
+
+    // 열 수가 많을 수 있으므로 가로 스크롤 지원
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .border(1.dp, borderColor, MaterialTheme.shapes.small),
+    ) {
+        // 각 열을 세로로 쌓기 — Row.height(IntrinsicSize.Min) 로 행 높이 맞춤
+        // 대신 행 단위로 렌더링
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 헤더 행
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .background(headerBg),
+            ) {
+                table.headers.forEachIndexed { colIdx, header ->
+                    TableCell(
+                        text = parseInline(header.trim()),
+                        isHeader = true,
+                        align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .then(
+                                if (colIdx < table.headers.lastIndex)
+                                    Modifier.border(
+                                        width = 1.dp,
+                                        color = borderColor,
+                                    )
+                                else Modifier
+                            ),
+                    )
+                }
+            }
+
+            HorizontalDivider(color = borderColor, thickness = 1.dp)
+
+            // 데이터 행
+            table.rows.forEachIndexed { rowIdx, row ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .background(
+                            if (rowIdx % 2 == 0) Color.Transparent
+                            else colors.grayscale.c50,
+                        ),
+                ) {
+                    val colCount = table.headers.size
+                    (0 until colCount).forEach { colIdx ->
+                        val cell = row.getOrElse(colIdx) { "" }
+                        TableCell(
+                            text = parseInline(cell.trim()),
+                            isHeader = false,
+                            align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .then(
+                                    if (colIdx < colCount - 1)
+                                        Modifier.border(width = 1.dp, color = borderColor)
+                                    else Modifier
+                                ),
+                        )
+                    }
+                }
+                if (rowIdx < table.rows.lastIndex) {
+                    HorizontalDivider(color = borderColor, thickness = 1.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TableCell(
+    text: AnnotatedString,
+    isHeader: Boolean,
+    align: TableAlign,
+    modifier: Modifier = Modifier,
+) {
+    val colors = CrewWikiDesignTokens.colors
+    Text(
+        text = text,
+        style = if (isHeader)
+            MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+        else
+            MaterialTheme.typography.bodyMedium,
+        color = colors.grayscale.c800,
+        textAlign = when (align) {
+            TableAlign.Center -> TextAlign.Center
+            TableAlign.End -> TextAlign.End
+            else -> TextAlign.Start
+        },
+        modifier = modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+    )
+}
+
 // ── 블록 타입 ──────────────────────────────────────────────────────────────────
+
+private enum class TableAlign { Start, Center, End }
 
 private sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class Paragraph(val annotated: AnnotatedString) : MarkdownBlock
+    data class Table(
+        val headers: List<String>,
+        val alignments: List<TableAlign>,
+        val rows: List<List<String>>,
+    ) : MarkdownBlock
     data class Image(val alt: String, val url: String) : MarkdownBlock
     data class Code(val language: String, val code: String) : MarkdownBlock
     data object HorizontalRule : MarkdownBlock
@@ -168,12 +285,13 @@ private val hrRegex = Regex("^[-*_]{3,}\\s*$")
 private val orderedListRegex = Regex("^(\\d+)\\.\\s+(.*)")
 private val unorderedListRegex = Regex("^[-*+]\\s+(.*)")
 private val fenceStart = Regex("^```(\\w*)")
+private val tableRowRegex = Regex("^\\|(.+)\\|\\s*$")
+private val tableSepRegex = Regex("^\\|[-:| ]+\\|\\s*$")
 
 private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
-    // HTML br → 빈 줄로 변환
     val text = raw
         .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-        .replace(Regex("<[^>]+>"), "")  // 나머지 HTML 태그 제거
+        .replace(Regex("<[^>]+>"), "")
 
     val blocks = mutableListOf<MarkdownBlock>()
     val lines = text.lines()
@@ -183,17 +301,27 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
         val line = lines[i]
 
         // 코드 블록
-        val fenceMatch = fenceStart.find(line)
-        if (fenceMatch != null) {
-            val lang = fenceMatch.groupValues[1]
+        if (fenceStart.containsMatchIn(line)) {
+            val lang = fenceStart.find(line)!!.groupValues[1]
             val codeLines = mutableListOf<String>()
             i++
             while (i < lines.size && !lines[i].startsWith("```")) {
-                codeLines += lines[i]
-                i++
+                codeLines += lines[i]; i++
             }
             blocks += MarkdownBlock.Code(lang, codeLines.joinToString("\n"))
-            i++
+            i++; continue
+        }
+
+        // 표: 헤더 행 | 구분 행 | 데이터 행
+        if (tableRowRegex.matches(line) && i + 1 < lines.size && tableSepRegex.matches(lines[i + 1])) {
+            val headers = splitTableRow(line)
+            val alignments = parseTableAlignments(lines[i + 1])
+            val rows = mutableListOf<List<String>>()
+            i += 2
+            while (i < lines.size && tableRowRegex.matches(lines[i])) {
+                rows += splitTableRow(lines[i]); i++
+            }
+            blocks += MarkdownBlock.Table(headers, alignments, rows)
             continue
         }
 
@@ -201,15 +329,12 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
         val imgMatch = imageRegex.find(line)
         if (imgMatch != null && line.trim().startsWith("!")) {
             blocks += MarkdownBlock.Image(imgMatch.groupValues[1], imgMatch.groupValues[2])
-            i++
-            continue
+            i++; continue
         }
 
         // 수평선
         if (hrRegex.matches(line)) {
-            blocks += MarkdownBlock.HorizontalRule
-            i++
-            continue
+            blocks += MarkdownBlock.HorizontalRule; i++; continue
         }
 
         // 제목
@@ -219,8 +344,7 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
                 level = headingMatch.groupValues[1].length,
                 text = headingMatch.groupValues[2].trim(),
             )
-            i++
-            continue
+            i++; continue
         }
 
         // 순서 있는 목록
@@ -231,40 +355,34 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
                 order = olMatch.groupValues[1].toIntOrNull() ?: 1,
                 annotated = parseInline(olMatch.groupValues[2]),
             )
-            i++
-            continue
+            i++; continue
         }
 
         // 순서 없는 목록
         val ulMatch = unorderedListRegex.find(line)
         if (ulMatch != null) {
             blocks += MarkdownBlock.ListItem(
-                ordered = false,
-                order = 0,
+                ordered = false, order = 0,
                 annotated = parseInline(ulMatch.groupValues[1]),
             )
-            i++
-            continue
+            i++; continue
         }
 
         // 빈 줄
         if (line.isBlank()) {
-            if (blocks.lastOrNull() !is MarkdownBlock.Blank) {
-                blocks += MarkdownBlock.Blank
-            }
-            i++
-            continue
+            if (blocks.lastOrNull() !is MarkdownBlock.Blank) blocks += MarkdownBlock.Blank
+            i++; continue
         }
 
-        // 일반 단락 (연속 줄 합치기)
+        // 일반 단락
         val paragraphLines = mutableListOf(line)
         while (i + 1 < lines.size) {
             val next = lines[i + 1]
             if (next.isBlank() || headingRegex.containsMatchIn(next) ||
-                hrRegex.matches(next) || fenceStart.containsMatchIn(next)
+                hrRegex.matches(next) || fenceStart.containsMatchIn(next) ||
+                tableRowRegex.matches(next)
             ) break
-            paragraphLines += next
-            i++
+            paragraphLines += next; i++
         }
         blocks += MarkdownBlock.Paragraph(parseInline(paragraphLines.joinToString(" ")))
         i++
@@ -273,55 +391,57 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
     return blocks
 }
 
+/** `| a | b | c |` → `["a", "b", "c"]` */
+private fun splitTableRow(line: String): List<String> =
+    line.trim().removePrefix("|").removeSuffix("|").split("|")
+
+/** `|:---|:---:|---:|` → [Start, Center, End, ...] */
+private fun parseTableAlignments(line: String): List<TableAlign> =
+    splitTableRow(line).map { cell ->
+        val t = cell.trim()
+        when {
+            t.startsWith(":") && t.endsWith(":") -> TableAlign.Center
+            t.endsWith(":") -> TableAlign.End
+            else -> TableAlign.Start
+        }
+    }
+
 // ── 인라인 파서 (**bold**, *italic*, `code`, [link](url)) ────────────────────
 
 private fun parseInline(text: String): AnnotatedString = buildAnnotatedString {
     var pos = 0
     while (pos < text.length) {
         when {
-            // **bold** 또는 __bold__
             pos + 1 < text.length && (text.startsWith("**", pos) || text.startsWith("__", pos)) -> {
                 val marker = text.substring(pos, pos + 2)
                 val end = text.indexOf(marker, pos + 2)
                 if (end != -1) {
                     pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                    append(text.substring(pos + 2, end))
-                    pop()
-                    pos = end + 2
+                    append(text.substring(pos + 2, end)); pop(); pos = end + 2
                 } else { append(text[pos]); pos++ }
             }
-            // *italic* 또는 _italic_
             text[pos] == '*' || text[pos] == '_' -> {
                 val marker = text[pos].toString()
                 val end = text.indexOf(marker, pos + 1)
                 if (end != -1) {
                     pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
-                    append(text.substring(pos + 1, end))
-                    pop()
-                    pos = end + 1
+                    append(text.substring(pos + 1, end)); pop(); pos = end + 1
                 } else { append(text[pos]); pos++ }
             }
-            // `inline code`
             text[pos] == '`' -> {
                 val end = text.indexOf('`', pos + 1)
                 if (end != -1) {
                     pushStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = Color(0x1A000000)))
-                    append(text.substring(pos + 1, end))
-                    pop()
-                    pos = end + 1
+                    append(text.substring(pos + 1, end)); pop(); pos = end + 1
                 } else { append(text[pos]); pos++ }
             }
-            // [link text](url) — 링크 텍스트만 표시
             text[pos] == '[' -> {
                 val closeBracket = text.indexOf(']', pos + 1)
                 val openParen = if (closeBracket != -1) text.indexOf('(', closeBracket) else -1
                 val closeParen = if (openParen == closeBracket + 1) text.indexOf(')', openParen + 1) else -1
                 if (closeParen != -1) {
-                    val linkText = text.substring(pos + 1, closeBracket)
                     pushStyle(SpanStyle(color = Color(0xFF1A73E8), textDecoration = TextDecoration.Underline))
-                    append(linkText)
-                    pop()
-                    pos = closeParen + 1
+                    append(text.substring(pos + 1, closeBracket)); pop(); pos = closeParen + 1
                 } else { append(text[pos]); pos++ }
             }
             else -> { append(text[pos]); pos++ }
