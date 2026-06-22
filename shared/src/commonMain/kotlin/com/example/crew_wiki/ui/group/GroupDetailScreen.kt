@@ -30,10 +30,8 @@ import com.example.crew_wiki.ui.common.CrewWikiActionButton
 import com.example.crew_wiki.ui.common.CrewWikiActionButtonStyle
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.CrewWikiTagChip
+import com.example.crew_wiki.ui.document.MarkdownContent
 import com.example.crew_wiki.ui.document.preprocessMarkdown
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -82,26 +80,12 @@ fun GroupDetailScreen(
                         )
                     }
 
-                    // 본문 마크다운 — fillMaxWidth() 필수
+                    // 본문 마크다운 (자체 렌더러)
                     val content = detail.contents.preprocessMarkdown()
                     if (content.isNotBlank()) {
-                        Markdown(
+                        MarkdownContent(
                             content = content,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = markdownColor(
-                                text = colors.grayscale.text,
-                                codeText = MaterialTheme.colorScheme.onSurfaceVariant,
-                                codeBackground = MaterialTheme.colorScheme.surfaceVariant,
-                                linkText = colors.primary.base,
-                            ),
-                            typography = markdownTypography(
-                                h1 = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                                h2 = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                h3 = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                text = MaterialTheme.typography.bodyLarge,
-                                code = MaterialTheme.typography.bodyMedium,
-                                paragraph = MaterialTheme.typography.bodyLarge,
-                            ),
                         )
                     }
 

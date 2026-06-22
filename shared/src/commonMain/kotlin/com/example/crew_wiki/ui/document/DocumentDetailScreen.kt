@@ -28,9 +28,6 @@ import com.example.crew_wiki.ui.common.CrewWikiActionButton
 import com.example.crew_wiki.ui.common.CrewWikiActionButtonStyle
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.CrewWikiTagChip
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -61,7 +58,7 @@ fun DocumentDetailScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
-                    // 헤더
+                    // 헤더 - 제목(왼쪽) + 버튼(오른쪽)
                     DocumentDetailHeader(
                         title = document.title,
                         onEditClick = onEditClick,
@@ -77,29 +74,12 @@ fun DocumentDetailScreen(
                         )
                     }
 
-                    // 본문 마크다운 — fillMaxWidth() 필수 (LazyColumn 내 무한 width 방지)
+                    // 본문 마크다운 (자체 렌더러)
                     val content = document.contents.preprocessMarkdown()
                     if (content.isNotBlank()) {
-                        Markdown(
+                        MarkdownContent(
                             content = content,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = markdownColor(
-                                text = colors.grayscale.text,
-                                codeText = MaterialTheme.colorScheme.onSurfaceVariant,
-                                codeBackground = MaterialTheme.colorScheme.surfaceVariant,
-                                linkText = colors.primary.base,
-                            ),
-                            typography = markdownTypography(
-                                h1 = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                                h2 = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                h3 = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                h4 = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                                h5 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                h6 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                text = MaterialTheme.typography.bodyLarge,
-                                code = MaterialTheme.typography.bodyMedium,
-                                paragraph = MaterialTheme.typography.bodyLarge,
-                            ),
                         )
                     }
 
@@ -217,18 +197,7 @@ private fun OrganizationSection(
     }
 }
 
-// "2026-06-22T10:54:00" → "2026년 6월 22일"
 internal fun formatDocDate(raw: String): String = try {
     val parts = raw.substringBefore("T").split("-")
     "${parts[0]}년 ${parts[1].trimStart('0')}월 ${parts[2].trimStart('0')}일"
 } catch (_: Exception) { raw }
-
-/**
- * iOS Metal 렌더러 크래시 방지:
- * - <br>, <br/> → 빈 줄 (마크다운 단락 구분)
- * - 기타 HTML 인라인 태그 제거
- */
-internal fun String.preprocessMarkdown(): String = this
-    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n\n")
-    .replace(Regex("<[^>]+>"), "")  // 처리되지 않은 HTML 태그 제거
-    .trimEnd()

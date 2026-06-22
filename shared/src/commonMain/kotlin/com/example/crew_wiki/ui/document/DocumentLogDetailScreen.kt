@@ -20,9 +20,6 @@ import com.example.crew_wiki.model.DocumentLogDetail
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.ErrorScreen
 import com.example.crew_wiki.ui.common.LoadingScreen
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 
 @Composable
 fun DocumentLogDetailScreen(
@@ -68,48 +65,30 @@ private fun DocumentLogDetailContent(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
-                    // 제목
                     Text(
                         text = log.title,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = colors.grayscale.c800,
                     )
-
-                    // 메타 정보
                     Text(
                         text = "편집자: ${log.writer}  ·  ${log.generateTime.formatLogDateTime()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.grayscale.c500,
                     )
 
-                    // 본문 마크다운
+                    // 본문 마크다운 (자체 렌더러)
                     val content = log.contents.preprocessMarkdown()
                     if (content.isNotBlank()) {
-                        Markdown(
+                        MarkdownContent(
                             content = content,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = markdownColor(
-                                text = colors.grayscale.text,
-                                codeText = MaterialTheme.colorScheme.onSurfaceVariant,
-                                codeBackground = MaterialTheme.colorScheme.surfaceVariant,
-                                linkText = colors.primary.base,
-                            ),
-                            typography = markdownTypography(
-                                h1 = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                                h2 = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                h3 = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                text = MaterialTheme.typography.bodyLarge,
-                                code = MaterialTheme.typography.bodyMedium,
-                                paragraph = MaterialTheme.typography.bodyLarge,
-                            ),
                         )
                     }
                 }
             }
         }
 
-        // 스냅샷 푸터
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -127,7 +106,6 @@ private fun DocumentLogDetailContent(
     }
 }
 
-// "2026-06-22T10:54:00" → "2026.06.22 10:54"
 private fun String.formatLogDateTime(): String = try {
     val d = substringBefore("T")
     val t = substringAfter("T").substring(0, 5)
