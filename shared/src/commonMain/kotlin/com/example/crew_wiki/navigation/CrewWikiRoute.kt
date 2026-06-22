@@ -46,6 +46,9 @@ object CrewWikiRoute {
     )
 
     @Serializable
+    data object Search
+
+    @Serializable
     data object AdminLogin
 
     @Serializable

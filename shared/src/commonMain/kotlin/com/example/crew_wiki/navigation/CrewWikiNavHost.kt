@@ -2,11 +2,17 @@ package com.example.crew_wiki.navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
@@ -15,9 +21,11 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.crew_wiki.di.AppContainer
+import com.example.crew_wiki.ui.common.CrewWikiTopBar
 import com.example.crew_wiki.ui.common.ErrorScreen
 import com.example.crew_wiki.ui.common.LoadingScreen
 import com.example.crew_wiki.ui.document.DocumentDetailScreen
@@ -36,24 +44,62 @@ import com.example.crew_wiki.ui.home.HomeViewModel
 import com.example.crew_wiki.ui.popular.PopularDocumentsScreen
 import com.example.crew_wiki.ui.popular.PopularDocumentsViewModel
 import com.example.crew_wiki.ui.popular.PopularUiState
+import com.example.crew_wiki.ui.search.SearchScreen
+import com.example.crew_wiki.ui.search.SearchViewModel
+import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 @Composable
 fun CrewWikiNavRoot() {
     val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val coroutineScope = rememberCoroutineScope()
+    var shuffleLoading by remember { mutableStateOf(false) }
 
-    NavHost(
-        navController = navController,
-        startDestination = CrewWikiRoute.Home,
-        modifier = androidx.compose.ui.Modifier
-            .background(MaterialTheme.colorScheme.background)
-            .safeContentPadding()
-            .fillMaxSize(),
-    ) {
-        addHomeDestination(navController)
-        addPopularDestination(navController)
-        addDocumentDestinations(navController)
-        addGroupDestinations(navController)
+    // Home이 아닌 화면에서 뒤로가기 버튼 표시
+    val currentRoute = backStackEntry?.destination?.route ?: ""
+    val isHome = currentRoute.contains("Home") || currentRoute.isEmpty()
+
+    Scaffold(
+        topBar = {
+            CrewWikiTopBar(
+                showBack = !isHome,
+                onBack = { navController.popBackStack() },
+                onShuffle = {
+                    if (!shuffleLoading) {
+                        coroutineScope.launch {
+                            shuffleLoading = true
+                            try {
+                                val randomDoc = AppContainer.documentApiService.getRandomDocument()
+                                navController.navigate(CrewWikiRoute.Document(randomDoc.documentUUID))
+                            } catch (_: Exception) {
+                                // 실패 시 무시
+                            } finally {
+                                shuffleLoading = false
+                            }
+                        }
+                    }
+                },
+                shuffleLoading = shuffleLoading,
+                onSearch = { navController.navigate(CrewWikiRoute.Search) },
+            )
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = CrewWikiRoute.Home,
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
+                .fillMaxSize()
+                .padding(paddingValues),
+        ) {
+            addHomeDestination(navController)
+            addPopularDestination(navController)
+            addDocumentDestinations(navController)
+            addGroupDestinations(navController)
+            addSearchDestination(navController)
+        }
     }
 }
 
@@ -179,7 +225,6 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
 
     // 문서 수정 (placeholder)
     composable<CrewWikiRoute.DocumentEdit> {
-        // TODO: 에디터 화면
         LoadingScreen()
     }
 
@@ -249,6 +294,26 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
 
     composable<CrewWikiRoute.GroupEdit> {
         LoadingScreen()
+    }
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+private fun NavGraphBuilder.addSearchDestination(navController: NavController) {
+    composable<CrewWikiRoute.Search> {
+        val vm = viewModel<SearchViewModel>(
+            factory = vmFactory { SearchViewModel(AppContainer.documentApiService) },
+        )
+        SearchScreen(
+            viewModel = vm,
+            onResultClick = { uuid, documentType ->
+                if (documentType == "ORGANIZATION") {
+                    navController.navigate(CrewWikiRoute.GroupDetail(uuid))
+                } else {
+                    navController.navigate(CrewWikiRoute.Document(uuid))
+                }
+            },
+        )
     }
 }
 
