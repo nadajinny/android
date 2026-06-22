@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.crew_wiki.CrewWikiDesignTokens
+import com.example.crew_wiki.model.CrewWikiDocument
+import com.example.crew_wiki.model.OrganizationReference
 import com.example.crew_wiki.ui.common.CrewWikiActionButton
 import com.example.crew_wiki.ui.common.CrewWikiActionButtonStyle
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
@@ -230,8 +232,32 @@ private data class DocumentSectionUiModel(
 @Composable
 private fun rememberDocumentDetailUiState(documentId: String): DocumentDetailUiState {
     return remember(documentId) {
-        DocumentDetailUiState(
+        val document = CrewWikiDocument(
+            documentId = 1,
+            documentUUID = documentId,
             title = "크루위키 문서: $documentId",
+            contents = """
+                ## 기본 정보
+                이 영역은 웹의 문서 상세 화면 레이아웃을 Android KMP로 옮기기 위한 스켈레톤입니다.
+                실제 API가 연결되면 문서 제목, 소속, 소개, 링크 정보 같은 기본 메타데이터가 여기에 들어오게 됩니다.
+
+                ## 활동과 특징
+                본문은 마크다운 렌더링 전략이 정해지기 전까지는 단락 단위의 더미 텍스트로 유지합니다.
+                현재 단계에서는 상단 액션, 목차, 크루 칩, 본문 섹션, 하단 메타 푸터가 실제 화면 배치로 잡혀 있는지가 더 중요합니다.
+
+                ### 다음 구현 우선순위
+                1순위는 실제 Document 모델 연결, 2순위는 TOC 클릭 이동, 3순위는 마크다운 본문 렌더링입니다.
+            """.trimIndent(),
+            writer = "비모",
+            generateTime = "2026-06-22T10:54:00",
+            organizations = listOf(
+                OrganizationReference(title = "우테코", uuid = "organization-1"),
+                OrganizationReference(title = "백엔드", uuid = "organization-2"),
+            ),
+        )
+
+        DocumentDetailUiState(
+            title = document.title,
             relatedCrewNames = listOf("비모", "우디", "세인", "주디"),
             lastEditedLabel = "2026년 6월 22일 (월) 10:54",
             sections = listOf(
