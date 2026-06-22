@@ -5,10 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,17 +18,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.example.crew_wiki.CrewWikiDesignTokens
+import kotlin.math.max
 
 /**
  * KMP iOS 안전 마크다운 렌더러 (자체 구현)
@@ -157,6 +161,8 @@ private fun MarkdownTable(table: MarkdownBlock.Table) {
     val colors = CrewWikiDesignTokens.colors
     val borderColor = colors.primary.c100
     val headerBg = colors.primary.c50
+    val colCount = table.headers.size
+    val rowCount = table.rows.size + 1 // 헤더 행 포함
 
     // 열 수가 많을 수 있으므로 가로 스크롤 지원
     Row(
@@ -165,70 +171,81 @@ private fun MarkdownTable(table: MarkdownBlock.Table) {
             .horizontalScroll(rememberScrollState())
             .border(1.dp, borderColor, MaterialTheme.shapes.small),
     ) {
-        // 각 열을 세로로 쌓기 — Row.height(IntrinsicSize.Min) 로 행 높이 맞춤
-        // 대신 행 단위로 렌더링
-        Column(modifier = Modifier.fillMaxWidth()) {
+        TableGrid(
+            colCount = colCount,
+            rowCount = rowCount,
+        ) {
             // 헤더 행
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .background(headerBg),
-            ) {
-                table.headers.forEachIndexed { colIdx, header ->
+            table.headers.forEachIndexed { colIdx, header ->
+                TableCell(
+                    text = parseInline(header.trim()),
+                    isHeader = true,
+                    align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
+                    modifier = Modifier
+                        .background(headerBg)
+                        .border(width = 1.dp, color = borderColor),
+                )
+            }
+            // 데이터 행 — 짝/홀수 행 배경 구분
+            table.rows.forEachIndexed { rowIdx, row ->
+                (0 until colCount).forEach { colIdx ->
+                    val cell = row.getOrElse(colIdx) { "" }
                     TableCell(
-                        text = parseInline(header.trim()),
-                        isHeader = true,
+                        text = parseInline(cell.trim()),
+                        isHeader = false,
                         align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .then(
-                                if (colIdx < table.headers.lastIndex)
-                                    Modifier.border(
-                                        width = 1.dp,
-                                        color = borderColor,
-                                    )
-                                else Modifier
-                            ),
+                            .background(if (rowIdx % 2 == 0) Color.Transparent else colors.grayscale.c50)
+                            .border(width = 1.dp, color = borderColor),
                     )
                 }
             }
+        }
+    }
+}
 
-            HorizontalDivider(color = borderColor, thickness = 1.dp)
+/**
+ * 표를 (colCount × rowCount) 그리드로 배치한다.
+ * 1차 측정으로 각 열의 최대 너비/각 행의 최대 높이를 구하고,
+ * 2차 측정에서 모든 셀을 해당 너비·높이로 고정해 행/열 경계선이 정확히 맞도록 한다.
+ */
+@Composable
+private fun TableGrid(
+    colCount: Int,
+    rowCount: Int,
+    content: @Composable () -> Unit,
+) {
+    Layout(content = content) { measurables, _ ->
+        require(measurables.size == colCount * rowCount)
 
-            // 데이터 행
-            table.rows.forEachIndexed { rowIdx, row ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min)
-                        .background(
-                            if (rowIdx % 2 == 0) Color.Transparent
-                            else colors.grayscale.c50,
-                        ),
-                ) {
-                    val colCount = table.headers.size
-                    (0 until colCount).forEach { colIdx ->
-                        val cell = row.getOrElse(colIdx) { "" }
-                        TableCell(
-                            text = parseInline(cell.trim()),
-                            isHeader = false,
-                            align = table.alignments.getOrElse(colIdx) { TableAlign.Start },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .then(
-                                    if (colIdx < colCount - 1)
-                                        Modifier.border(width = 1.dp, color = borderColor)
-                                    else Modifier
-                                ),
-                        )
-                    }
+        val loose = Constraints()
+        val natural = measurables.map { it.measure(loose) }
+
+        val colWidths = IntArray(colCount) { c ->
+            (0 until rowCount).maxOf { r -> natural[r * colCount + c].width }
+        }
+        val rowHeights = IntArray(rowCount) { r ->
+            (0 until colCount).maxOf { c -> natural[r * colCount + c].height }
+        }
+
+        val placeables = measurables.mapIndexed { idx, measurable ->
+            val r = idx / colCount
+            val c = idx % colCount
+            measurable.measure(Constraints.fixed(max(colWidths[c], 1), max(rowHeights[r], 1)))
+        }
+
+        val totalWidth = colWidths.sum()
+        val totalHeight = rowHeights.sum()
+
+        layout(totalWidth, totalHeight) {
+            var y = 0
+            for (r in 0 until rowCount) {
+                var x = 0
+                for (c in 0 until colCount) {
+                    placeables[r * colCount + c].placeRelative(x, y)
+                    x += colWidths[c]
                 }
-                if (rowIdx < table.rows.lastIndex) {
-                    HorizontalDivider(color = borderColor, thickness = 1.dp)
-                }
+                y += rowHeights[r]
             }
         }
     }
@@ -440,8 +457,22 @@ private fun parseInline(text: String): AnnotatedString = buildAnnotatedString {
                 val openParen = if (closeBracket != -1) text.indexOf('(', closeBracket) else -1
                 val closeParen = if (openParen == closeBracket + 1) text.indexOf(')', openParen + 1) else -1
                 if (closeParen != -1) {
-                    pushStyle(SpanStyle(color = Color(0xFF1A73E8), textDecoration = TextDecoration.Underline))
-                    append(text.substring(pos + 1, closeBracket)); pop(); pos = closeParen + 1
+                    val linkText = text.substring(pos + 1, closeBracket)
+                    val url = text.substring(openParen + 1, closeParen)
+                    withLink(
+                        LinkAnnotation.Url(
+                            url = url,
+                            styles = TextLinkStyles(
+                                style = SpanStyle(
+                                    color = Color(0xFF1A73E8),
+                                    textDecoration = TextDecoration.Underline,
+                                ),
+                            ),
+                        ),
+                    ) {
+                        append(linkText)
+                    }
+                    pos = closeParen + 1
                 } else { append(text[pos]); pos++ }
             }
             else -> { append(text[pos]); pos++ }
