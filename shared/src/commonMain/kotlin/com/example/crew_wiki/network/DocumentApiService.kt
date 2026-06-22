@@ -13,10 +13,13 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 
 class DocumentApiService(private val client: HttpClient) {
 
@@ -82,11 +85,13 @@ class DocumentApiService(private val client: HttpClient) {
 
     suspend fun postDocument(request: DocumentSaveRequestDto): DocumentResponseDto =
         client.post("$BASE_URL/document") {
+            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(request)
         }.body<ApiResponse<DocumentResponseDto>>().data
 
     suspend fun putDocument(request: DocumentSaveRequestDto): DocumentResponseDto =
         client.put("$BASE_URL/document") {
+            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(request)
         }.body<ApiResponse<DocumentResponseDto>>().data
 

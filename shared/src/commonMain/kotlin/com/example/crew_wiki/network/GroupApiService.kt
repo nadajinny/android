@@ -8,8 +8,11 @@ import com.example.crew_wiki.network.dto.OrganizationDocumentResponseDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 
 class GroupApiService(private val client: HttpClient) {
 
@@ -22,6 +25,7 @@ class GroupApiService(private val client: HttpClient) {
         request: OrganizationDocumentCreateRequestDto,
     ): OrganizationDocumentResponseDto =
         client.post("$BASE_URL/organization") {
+            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(request)
         }.body<ApiResponse<OrganizationDocumentResponseDto>>().data
 
@@ -29,6 +33,7 @@ class GroupApiService(private val client: HttpClient) {
         request: OrganizationDocumentLinkRequestDto,
     ): OrganizationDocumentResponseDto =
         client.post("$BASE_URL/organization/link") {
+            header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             setBody(request)
         }.body<ApiResponse<OrganizationDocumentResponseDto>>().data
 }
