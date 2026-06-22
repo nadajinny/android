@@ -47,22 +47,6 @@ fun DocumentDetailScreen(
         verticalArrangement = Arrangement.spacedBy(spacing.md),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
-        // 액션 버튼 (편집하기 / 편집기록 / 작성하기) - 텍스트 박스 바깥, 최상단
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
-                    CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
-                    CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
-                }
-            }
-        }
-
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -81,6 +65,17 @@ fun DocumentDetailScreen(
                         color = colors.grayscale.c800,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                            CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
+                            CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
+                            CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
+                        }
+                    }
 
                     // 소속 섹션
                     if (document.organizations.isNotEmpty()) {
