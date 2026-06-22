@@ -1,14 +1,17 @@
 package com.example.crew_wiki.ui.common
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -17,11 +20,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.crew_wiki.CrewWikiDesignTokens
+import crewwiki.shared.generated.resources.Res
+import crewwiki.shared.generated.resources.crew_wiki_icon
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * crew-wiki-next WikiHeader를 Android로 포팅한 상단 앱바.
@@ -44,8 +51,9 @@ fun CrewWikiTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
             .background(colors.primary.base)
+            .windowInsetsPadding(WindowInsets.statusBars)
+            .height(56.dp)
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -63,22 +71,14 @@ fun CrewWikiTopBar(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        // 로고 박스 (흰색 배경 + 직사각형)
-        Box(
+        // 로고 아이콘
+        Image(
+            painter = painterResource(Res.drawable.crew_wiki_icon),
+            contentDescription = "크루위키 로고",
             modifier = Modifier
-                .size(width = 30.dp, height = 30.dp)
-                .background(Color.White, RoundedCornerShape(6.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            // "W" 글자로 로고 대체 (bold, teal)
-            Text(
-                text = "W",
-                color = colors.primary.base,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 16.sp,
-            )
-        }
+                .size(30.dp)
+                .clip(RoundedCornerShape(6.dp)),
+        )
 
         Spacer(modifier = Modifier.width(8.dp))
 
