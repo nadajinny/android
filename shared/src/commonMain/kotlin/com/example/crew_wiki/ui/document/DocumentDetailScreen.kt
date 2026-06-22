@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -146,23 +145,24 @@ private fun DocumentDetailHeader(
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
+                CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
+                CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
+            }
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = colors.grayscale.c800,
-            modifier = Modifier.weight(1f).padding(end = spacing.md),
+            modifier = Modifier.fillMaxWidth(),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
-            CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
-            CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
-        }
     }
 }
 
