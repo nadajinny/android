@@ -115,6 +115,12 @@ fun CrewWikiNavRoot() {
                 CrewWikiTopBar(
                     showBack = !isTopLevelTab,
                     onBack = { navController.popBackStack() },
+                    onHomeClick = {
+                        navController.navigate(CrewWikiRoute.Home) {
+                            popUpTo(CrewWikiRoute.Home) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                     onShuffle = {
                         if (!shuffleLoading) {
                             coroutineScope.launch {

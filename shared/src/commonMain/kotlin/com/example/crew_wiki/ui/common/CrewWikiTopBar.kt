@@ -2,6 +2,7 @@ package com.example.crew_wiki.ui.common
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -42,6 +43,7 @@ import org.jetbrains.compose.resources.painterResource
 fun CrewWikiTopBar(
     showBack: Boolean,
     onBack: () -> Unit,
+    onHomeClick: () -> Unit,
     onShuffle: () -> Unit,
     shuffleLoading: Boolean,
     onSearch: () -> Unit,
@@ -72,24 +74,28 @@ fun CrewWikiTopBar(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        // 로고 아이콘
-        Image(
-            painter = painterResource(Res.drawable.crew_wiki_icon),
-            contentDescription = "크루위키 로고",
-            modifier = Modifier
-                .size(30.dp)
-                .clip(RoundedCornerShape(6.dp)),
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = "크루위키",
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        Row(
+            modifier = Modifier.clickable(onClick = onHomeClick),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Image(
+                painter = painterResource(Res.drawable.crew_wiki_icon),
+                contentDescription = "크루위키 로고",
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "크루위키",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = MaterialTheme.typography.displaySmall.fontFamily,
+                ),
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 
