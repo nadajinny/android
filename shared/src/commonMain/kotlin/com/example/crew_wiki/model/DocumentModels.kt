@@ -8,6 +8,15 @@ enum class DocumentType {
     ORGANIZATION,
 }
 
+/** 최근 편집 문서 목록용 경량 모델 */
+@Serializable
+data class RecentDocument(
+    val uuid: String,
+    val title: String,
+    val generateTime: String,
+    val documentType: String,  // "CREW" | "ORGANIZATION"
+)
+
 /**
  * 문서에 연결된 조직(그룹) 문서 참조
  * Swagger: OrganizationDocumentResponse
