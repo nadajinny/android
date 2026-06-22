@@ -41,6 +41,9 @@ import com.example.crew_wiki.ui.common.HomeNavIcon
 import com.example.crew_wiki.ui.common.LoadingScreen
 import com.example.crew_wiki.ui.common.SettingsNavIcon
 import com.example.crew_wiki.ui.document.DocumentDetailScreen
+import com.example.crew_wiki.ui.document.DocumentEditorMode
+import com.example.crew_wiki.ui.document.DocumentEditorScreen
+import com.example.crew_wiki.ui.document.DocumentEditorViewModel
 import com.example.crew_wiki.ui.document.DocumentDetailUiState
 import com.example.crew_wiki.ui.document.DocumentDetailViewModel
 import com.example.crew_wiki.ui.document.DocumentLogDetailScreen
@@ -274,14 +277,51 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
         DocumentLogDetailScreen(viewModel = vm)
     }
 
-    // 문서 수정 (placeholder)
-    composable<CrewWikiRoute.DocumentEdit> {
-        LoadingScreen()
+    // 문서 수정
+    composable<CrewWikiRoute.DocumentEdit> { backStackEntry ->
+        val route = backStackEntry.toRoute<CrewWikiRoute.DocumentEdit>()
+        val vm = viewModel<DocumentEditorViewModel>(
+            key = "edit-${route.documentId}",
+            factory = vmFactory {
+                DocumentEditorViewModel(
+                    AppContainer.documentApiService,
+                    AppContainer.groupApiService,
+                )
+            },
+        )
+        DocumentEditorScreen(
+            viewModel = vm,
+            mode = DocumentEditorMode.Edit(route.documentId),
+            onBackClick = { navController.popBackStack() },
+            onSaved = { documentId ->
+                navController.navigate(CrewWikiRoute.Document(documentId)) {
+                    popUpTo(CrewWikiRoute.DocumentEdit(route.documentId)) { inclusive = true }
+                }
+            },
+        )
     }
 
-    // 문서 작성 (placeholder)
+    // 문서 작성
     composable<CrewWikiRoute.Post> {
-        LoadingScreen()
+        val vm = viewModel<DocumentEditorViewModel>(
+            key = "post",
+            factory = vmFactory {
+                DocumentEditorViewModel(
+                    AppContainer.documentApiService,
+                    AppContainer.groupApiService,
+                )
+            },
+        )
+        DocumentEditorScreen(
+            viewModel = vm,
+            mode = DocumentEditorMode.Post,
+            onBackClick = { navController.popBackStack() },
+            onSaved = { documentId ->
+                navController.navigate(CrewWikiRoute.Document(documentId)) {
+                    popUpTo(CrewWikiRoute.Post) { inclusive = true }
+                }
+            },
+        )
     }
 }
 

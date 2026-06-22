@@ -3,6 +3,7 @@ package com.example.crew_wiki.network
 import com.example.crew_wiki.network.dto.ApiResponse
 import com.example.crew_wiki.network.dto.DocumentListResponseDto
 import com.example.crew_wiki.network.dto.DocumentResponseDto
+import com.example.crew_wiki.network.dto.DocumentSaveRequestDto
 import com.example.crew_wiki.network.dto.DocumentSearchResponseDto
 import com.example.crew_wiki.network.dto.HistoryDetailResponseDto
 import com.example.crew_wiki.network.dto.HistoryResponseDto
@@ -10,8 +11,12 @@ import com.example.crew_wiki.network.dto.OrganizationDocumentSearchResponseDto
 import com.example.crew_wiki.network.dto.PagedResponseDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 
 class DocumentApiService(private val client: HttpClient) {
 
@@ -74,4 +79,21 @@ class DocumentApiService(private val client: HttpClient) {
     ): List<OrganizationDocumentSearchResponseDto> =
         client.get("$BASE_URL/document/$uuid/organization-documents")
             .body<ApiResponse<List<OrganizationDocumentSearchResponseDto>>>().data
+
+    suspend fun postDocument(request: DocumentSaveRequestDto): DocumentResponseDto =
+        client.post("$BASE_URL/document") {
+            setBody(request)
+        }.body<ApiResponse<DocumentResponseDto>>().data
+
+    suspend fun putDocument(request: DocumentSaveRequestDto): DocumentResponseDto =
+        client.put("$BASE_URL/document") {
+            setBody(request)
+        }.body<ApiResponse<DocumentResponseDto>>().data
+
+    suspend fun deleteOrganizationFromDocument(
+        documentUuid: String,
+        organizationDocumentUuid: String,
+    ) {
+        client.delete("$BASE_URL/document/$documentUuid/organization-documents/$organizationDocumentUuid")
+    }
 }

@@ -124,6 +124,31 @@ data class LinkedCrewDocumentResponseDto(
 )
 
 @Serializable
+data class DocumentSaveRequestDto(
+    val title: String,
+    val contents: String,
+    val writer: String,
+    val documentBytes: Long,
+    val uuid: String,
+)
+
+@Serializable
+data class OrganizationDocumentCreateRequestDto(
+    val title: String,
+    val contents: String,
+    val writer: String,
+    val documentBytes: Long,
+    val crewDocumentUuid: String,
+    val organizationDocumentUuid: String,
+)
+
+@Serializable
+data class OrganizationDocumentLinkRequestDto(
+    val crewDocumentUuid: String,
+    val organizationDocumentUuid: String,
+)
+
+@Serializable
 data class OrganizationDocumentAndEventResponseDto(
     val organizationDocumentId: Long,
     val organizationDocumentUuid: String,
