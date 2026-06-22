@@ -26,7 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlin.reflect.KClass
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
@@ -81,7 +83,7 @@ private fun NavGraphBuilder.addPopularDestination(navController: NavController) 
         val vm = viewModel<PopularDocumentsViewModel>(
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     PopularDocumentsViewModel(AppContainer.documentRepository) as T
             },
         )
@@ -113,7 +115,7 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
             key = route.documentId,
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     DocumentDetailViewModel(AppContainer.documentRepository, route.documentId) as T
             },
         )
@@ -156,7 +158,7 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
             key = route.documentId,
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     DocumentLogsViewModel(AppContainer.documentRepository, route.documentId) as T
             },
         )
@@ -175,7 +177,7 @@ private fun NavGraphBuilder.addDocumentDestinations(navController: NavController
             key = route.logId.toString(),
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong()) as T
             },
         )
@@ -193,7 +195,7 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
             key = route.groupId,
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     GroupDetailViewModel(AppContainer.groupDocumentRepository, route.groupId) as T
             },
         )
@@ -225,7 +227,7 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
             key = "group-logs-${route.groupId}",
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     DocumentLogsViewModel(AppContainer.documentRepository, route.groupId) as T
             },
         )
@@ -244,7 +246,7 @@ private fun NavGraphBuilder.addGroupDestinations(navController: NavController) {
             key = "group-log-${route.logId}",
             factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T =
                     DocumentLogDetailViewModel(AppContainer.documentRepository, route.logId.toLong()) as T
             },
         )

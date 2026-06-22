@@ -236,7 +236,7 @@ private fun rememberDocumentDetailUiState(documentDetail: CrewWikiDocumentDetail
     return remember(documentDetail) {
         val document = documentDetail.document
 
-        DocumentDetailUiState(
+        DocumentDetailScreenState(
             title = document.title,
             relatedCrewNames = documentDetail.relatedCrewDocuments.map { it.title },
             lastEditedLabel = document.generateTime,
