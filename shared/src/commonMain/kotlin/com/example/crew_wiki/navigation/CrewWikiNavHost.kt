@@ -19,6 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,11 +30,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.crew_wiki.CrewWikiDesignTokens
+import com.example.crew_wiki.data.document.InMemoryDocumentRepository
 import com.example.crew_wiki.ui.document.DocumentDetailScreen
 
 @Composable
 fun CrewWikiNavRoot() {
     val navController = rememberNavController()
+    val documentRepository = remember { InMemoryDocumentRepository() }
 
     NavHost(
         navController = navController,
@@ -50,7 +53,7 @@ fun CrewWikiNavRoot() {
         addStaticDestination<CrewWikiRoute.AdminLogin>("관리자 로그인", "관리자 플로우를 별도 그래프로 분리할 후보 목적지입니다.")
         addStaticDestination<CrewWikiRoute.AdminDashboard>("관리자 대시보드", "관리자 플로우를 별도 그래프로 분리할 후보 목적지입니다.")
         addStaticDestination<CrewWikiRoute.AdminDocuments>("문서 관리", "관리자 플로우를 별도 그래프로 분리할 후보 목적지입니다.")
-        addDocumentDestinations()
+        addDocumentDestinations(documentRepository)
         addGroupDestinations()
     }
 }
@@ -129,10 +132,24 @@ private inline fun <reified T : Any> NavGraphBuilder.addStaticDestination(
     }
 }
 
-private fun NavGraphBuilder.addDocumentDestinations() {
+private fun NavGraphBuilder.addDocumentDestinations(
+    documentRepository: InMemoryDocumentRepository,
+) {
     composable<CrewWikiRoute.Document> { backStackEntry ->
         val route = backStackEntry.toRoute<CrewWikiRoute.Document>()
-        DocumentDetailScreen(documentId = route.documentId)
+        val documentDetail = remember(route.documentId) {
+            documentRepository.getDocumentDetail(route.documentId)
+        }
+
+        if (documentDetail == null) {
+            PlaceholderScreen(
+                title = "문서 상세",
+                route = "wiki/document/${route.documentId}",
+                description = "해당 문서를 찾을 수 없습니다.",
+            )
+        } else {
+            DocumentDetailScreen(documentDetail = documentDetail)
+        }
     }
     composable<CrewWikiRoute.DocumentEdit> { backStackEntry ->
         val route = backStackEntry.toRoute<CrewWikiRoute.DocumentEdit>()

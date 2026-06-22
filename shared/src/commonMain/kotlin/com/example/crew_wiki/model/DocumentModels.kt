@@ -67,6 +67,18 @@ data class PopularDocument(
 )
 
 @Serializable
+data class RelatedCrewDocument(
+    val documentUuid: String,
+    val title: String,
+)
+
+@Serializable
+data class CrewWikiDocumentDetail(
+    val document: CrewWikiDocument,
+    val relatedCrewDocuments: List<RelatedCrewDocument> = emptyList(),
+)
+
+@Serializable
 enum class PopularSortType {
     VIEWS,
     EDITS,
