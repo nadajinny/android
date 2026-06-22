@@ -92,29 +92,10 @@ fun MarkdownContent(
 
                 is MarkdownBlock.Image -> {
                     if (index > 0) Spacer(Modifier.height(spacing.md))
-                    val imageCaption = block.alt.toVisibleImageCaption()
-                    AsyncImage(
-                        model = block.url,
-                        contentDescription = imageCaption,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .then(
-                                if (block.linkUrl != null) {
-                                    Modifier.clickable { uriHandler.openUri(block.linkUrl) }
-                                } else {
-                                    Modifier
-                                },
-                            ),
+                    MarkdownImageBlock(
+                        block = block,
+                        uriHandlerOpen = uriHandler::openUri,
                     )
-                    if (imageCaption != null) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = imageCaption,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.grayscale.c500,
-                        )
-                    }
                     Spacer(Modifier.height(spacing.md))
                 }
 
@@ -142,10 +123,14 @@ fun MarkdownContent(
                 }
 
                 is MarkdownBlock.ListItem -> {
-                    if (index == 0 || blocks[index - 1] !is MarkdownBlock.ListItem) {
+                    if (index == 0 || (blocks[index - 1] !is MarkdownBlock.ListItem && blocks[index - 1] !is MarkdownBlock.ListImage)) {
                         Spacer(Modifier.height(spacing.sm))
                     }
-                    Row(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = block.indentLevel.indentPadding()),
+                    ) {
                         Text(
                             text = if (block.ordered) "${block.order}." else "•",
                             style = MaterialTheme.typography.bodyLarge,
@@ -161,11 +146,68 @@ fun MarkdownContent(
                     }
                 }
 
+                is MarkdownBlock.ListImage -> {
+                    if (index == 0 || (blocks[index - 1] !is MarkdownBlock.ListItem && blocks[index - 1] !is MarkdownBlock.ListImage)) {
+                        Spacer(Modifier.height(spacing.sm))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = block.indentLevel.indentPadding()),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = if (block.ordered) "${block.order}." else "•",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colors.grayscale.c600,
+                            modifier = Modifier.width(24.dp),
+                        )
+                        Box(modifier = Modifier.weight(1f)) {
+                            MarkdownImageBlock(
+                                block = block.image,
+                                uriHandlerOpen = uriHandler::openUri,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(spacing.md))
+                }
+
                 is MarkdownBlock.Blank -> {
                     Spacer(Modifier.height(spacing.xs))
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MarkdownImageBlock(
+    block: MarkdownBlock.Image,
+    uriHandlerOpen: (String) -> Unit,
+) {
+    val colors = CrewWikiDesignTokens.colors
+    val imageCaption = block.alt.toVisibleImageCaption()
+    AsyncImage(
+        model = block.url,
+        contentDescription = imageCaption,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .then(
+                if (block.linkUrl != null) {
+                    Modifier.clickable { uriHandlerOpen(block.linkUrl) }
+                } else {
+                    Modifier
+                },
+            ),
+    )
+    if (imageCaption != null) {
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = imageCaption,
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.grayscale.c500,
+        )
     }
 }
 
@@ -417,17 +459,28 @@ private sealed interface MarkdownBlock {
     data class Image(val alt: String, val url: String, val linkUrl: String? = null) : MarkdownBlock
     data class Code(val language: String, val code: String) : MarkdownBlock
     data object HorizontalRule : MarkdownBlock
-    data class ListItem(val ordered: Boolean, val order: Int, val annotated: AnnotatedString) : MarkdownBlock
+    data class ListItem(
+        val ordered: Boolean,
+        val order: Int,
+        val annotated: AnnotatedString,
+        val indentLevel: Int,
+    ) : MarkdownBlock
+    data class ListImage(
+        val ordered: Boolean,
+        val order: Int,
+        val image: Image,
+        val indentLevel: Int,
+    ) : MarkdownBlock
     data object Blank : MarkdownBlock
 }
 
 // ── 파서 ───────────────────────────────────────────────────────────────────────
 
 private val headingRegex = Regex("^(#{1,6})\\s+(.*)")
-private val blockQuoteRegex = Regex("^>\\s?(.*)$")
+private val blockQuoteRegex = Regex("^(\\s*)>\\s?(.*)$")
 private val hrRegex = Regex("^[-*_]{3,}\\s*$")
-private val orderedListRegex = Regex("^(\\d+)\\.\\s+(.*)")
-private val unorderedListRegex = Regex("^[-*+]\\s+(.*)")
+private val orderedListRegex = Regex("^(\\s*)(\\d+)\\.\\s*(.*)")
+private val unorderedListRegex = Regex("^(\\s*)[-*+]\\s*(.*)")
 private val fenceStart = Regex("^```(\\w*)")
 private val tableRowRegex = Regex("^\\|(.+)\\|\\s*$")
 private val tableSepRegex = Regex("^\\|[-:| ]+\\|\\s*$")
@@ -478,11 +531,11 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
         // 인용문
         val blockQuoteMatch = blockQuoteRegex.find(line)
         if (blockQuoteMatch != null) {
-            val quoteLines = mutableListOf(blockQuoteMatch.groupValues[1])
+            val quoteLines = mutableListOf(blockQuoteMatch.groupValues[2])
             while (i + 1 < lines.size) {
                 val next = lines[i + 1]
                 val nextMatch = blockQuoteRegex.find(next) ?: break
-                quoteLines += nextMatch.groupValues[1]
+                quoteLines += nextMatch.groupValues[2]
                 i++
             }
             blocks += MarkdownBlock.BlockQuote(parseInline(quoteLines.joinToString("\n")))
@@ -507,21 +560,47 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
         // 순서 있는 목록
         val olMatch = orderedListRegex.find(line)
         if (olMatch != null) {
-            blocks += MarkdownBlock.ListItem(
-                ordered = true,
-                order = olMatch.groupValues[1].toIntOrNull() ?: 1,
-                annotated = parseInline(olMatch.groupValues[2]),
-            )
+            val indentLevel = olMatch.groupValues[1].length / 4
+            val content = olMatch.groupValues[3].trim()
+            val imageBlock = parseImageBlock(content)
+            blocks += if (imageBlock != null) {
+                MarkdownBlock.ListImage(
+                    ordered = true,
+                    order = olMatch.groupValues[2].toIntOrNull() ?: 1,
+                    image = imageBlock,
+                    indentLevel = indentLevel,
+                )
+            } else {
+                MarkdownBlock.ListItem(
+                    ordered = true,
+                    order = olMatch.groupValues[2].toIntOrNull() ?: 1,
+                    annotated = parseInline(content),
+                    indentLevel = indentLevel,
+                )
+            }
             i++; continue
         }
 
         // 순서 없는 목록
         val ulMatch = unorderedListRegex.find(line)
         if (ulMatch != null) {
-            blocks += MarkdownBlock.ListItem(
-                ordered = false, order = 0,
-                annotated = parseInline(ulMatch.groupValues[1]),
-            )
+            val indentLevel = ulMatch.groupValues[1].length / 4
+            val content = ulMatch.groupValues[2].trim()
+            val imageBlock = parseImageBlock(content)
+            blocks += if (imageBlock != null) {
+                MarkdownBlock.ListImage(
+                    ordered = false,
+                    order = 0,
+                    image = imageBlock,
+                    indentLevel = indentLevel,
+                )
+            } else {
+                MarkdownBlock.ListItem(
+                    ordered = false, order = 0,
+                    annotated = parseInline(content),
+                    indentLevel = indentLevel,
+                )
+            }
             i++; continue
         }
 
@@ -537,7 +616,9 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
             val next = lines[i + 1]
             if (next.isBlank() || headingRegex.containsMatchIn(next) ||
                 hrRegex.matches(next) || fenceStart.containsMatchIn(next) ||
-                tableRowRegex.matches(next) || blockQuoteRegex.matches(next)
+                tableRowRegex.matches(next) || blockQuoteRegex.matches(next) ||
+                orderedListRegex.matches(next) || unorderedListRegex.matches(next) ||
+                parseImageBlock(next.trim()) != null
             ) break
             paragraphLines += next; i++
         }
@@ -569,6 +650,17 @@ private fun parseInline(text: String): AnnotatedString = buildAnnotatedString {
     var pos = 0
     while (pos < text.length) {
         when {
+            pos + 1 < text.length && text.startsWith("~~", pos) -> {
+                val end = text.indexOf("~~", pos + 2)
+                if (end != -1) {
+                    pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
+                    append(text.substring(pos + 2, end)); pop(); pos = end + 2
+                } else { append(text[pos]); pos++ }
+            }
+            pos + 1 < text.length && text[pos] == '\\' -> {
+                append(text[pos + 1])
+                pos += 2
+            }
             pos + 1 < text.length && (text.startsWith("**", pos) || text.startsWith("__", pos)) -> {
                 val marker = text.substring(pos, pos + 2)
                 val end = text.indexOf(marker, pos + 2)
@@ -632,6 +724,8 @@ private fun String.toVisibleImageCaption(): String? {
     if (normalized.equals("image", ignoreCase = true)) return null
     return normalized
 }
+
+private fun Int.indentPadding() = (this * 20).dp
 
 private fun parseImageBlock(line: String): MarkdownBlock.Image? {
     if (line.startsWith("![")) {
