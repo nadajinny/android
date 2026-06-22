@@ -1,10 +1,10 @@
 package com.example.crew_wiki.ui.group
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +17,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,9 +25,13 @@ import com.example.crew_wiki.CrewWikiDesignTokens
 import com.example.crew_wiki.model.GroupDocumentDetail
 import com.example.crew_wiki.model.LinkedCrewDocument
 import com.example.crew_wiki.model.OrganizationEvent
+import com.example.crew_wiki.ui.common.CrewWikiActionButton
+import com.example.crew_wiki.ui.common.CrewWikiActionButtonStyle
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.CrewWikiTagChip
-import com.example.crew_wiki.ui.document.parseGroupSections
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
 
 @Composable
 fun GroupDetailScreen(
@@ -37,51 +40,65 @@ fun GroupDetailScreen(
     onLogsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GroupDetailContent(
-        detail = detail,
-        onCrewDocumentClick = onCrewDocumentClick,
-        onLogsClick = onLogsClick,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun GroupDetailContent(
-    detail: GroupDocumentDetail,
-    onCrewDocumentClick: (uuid: String) -> Unit,
-    onLogsClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
-    val sections = remember(detail.contents) { parseGroupSections(detail.contents) }
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.xl),
+        contentPadding = PaddingValues(vertical = 16.dp),
     ) {
+        // 메인 카드 (헤더 + 본문 + 연관 문서)
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                    .padding(horizontal = 16.dp),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.xl)) {
-                    // 헤더
-                    GroupDocumentHeader(
-                        title = detail.title,
-                        onLogsClick = onLogsClick,
-                    )
-
-                    // 목차
-                    if (sections.isNotEmpty()) {
-                        GroupTableOfContents(sections = sections)
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xl),
+                ) {
+                    // 헤더 — 제목(왼쪽) + 편집기록 버튼(오른쪽)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = detail.title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.grayscale.c800,
+                            modifier = Modifier.weight(1f).padding(end = spacing.md),
+                        )
+                        CrewWikiActionButton(
+                            text = "편집기록",
+                            onClick = onLogsClick,
+                            style = CrewWikiActionButtonStyle.Tertiary,
+                        )
                     }
 
-                    // 본문
-                    GroupDocumentBody(sections = sections)
+                    // 본문 마크다운
+                    if (detail.contents.isNotBlank()) {
+                        Markdown(
+                            content = detail.contents,
+                            colors = markdownColor(
+                                text = colors.grayscale.text,
+                                codeText = MaterialTheme.colorScheme.onSurfaceVariant,
+                                codeBackground = MaterialTheme.colorScheme.surfaceVariant,
+                                linkText = colors.primary.base,
+                            ),
+                            typography = markdownTypography(
+                                h1 = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                                h2 = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                h3 = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                                text = MaterialTheme.typography.bodyLarge,
+                                code = MaterialTheme.typography.bodyMedium,
+                                paragraph = MaterialTheme.typography.bodyLarge,
+                            ),
+                        )
+                    }
 
                     // 연관 크루 문서
                     if (detail.linkedCrewDocuments.isNotEmpty()) {
@@ -100,12 +117,15 @@ private fun GroupDetailContent(
                 CrewWikiSurfaceSection(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = 16.dp),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(spacing.lg),
+                    ) {
                         Text(
                             text = "타임라인",
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = colors.grayscale.c800,
                         )
@@ -117,114 +137,23 @@ private fun GroupDetailContent(
             }
         }
 
+        // 푸터
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 16.dp),
             ) {
                 Text(
-                    text = "이 문서는 ${detail.generateTime.formatDate()} 에 마지막으로 편집되었습니다.",
+                    text = "이 문서는 ${detail.generateTime.formatGroupDate()}에 마지막으로 편집되었습니다.",
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = colors.grayscale.text,
+                    color = colors.grayscale.c600,
                 )
             }
         }
 
         item { Spacer(Modifier.height(24.dp)) }
-    }
-}
-
-@Composable
-private fun GroupDocumentHeader(
-    title: String,
-    onLogsClick: () -> Unit,
-) {
-    val spacing = CrewWikiDesignTokens.spacing
-    val colors = CrewWikiDesignTokens.colors
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.lg)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            Card(
-                modifier = Modifier.clickable(onClick = onLogsClick),
-                colors = CardDefaults.cardColors(
-                    containerColor = colors.grayscale.c50,
-                ),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Text(
-                    text = "편집기록",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = colors.grayscale.c700,
-                )
-            }
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.displayMedium,
-            color = colors.grayscale.c800,
-        )
-    }
-}
-
-@Composable
-private fun GroupTableOfContents(sections: List<GroupSectionUiModel>) {
-    val spacing = CrewWikiDesignTokens.spacing
-    val colors = CrewWikiDesignTokens.colors
-
-    CrewWikiSurfaceSection(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            Text(
-                text = "목차",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = colors.grayscale.c800,
-            )
-            sections.forEachIndexed { index, section ->
-                Text(
-                    text = "${index + 1}. ${section.heading}",
-                    modifier = Modifier.padding(start = ((section.level - 1) * 16).dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.grayscale.c800,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GroupDocumentBody(sections: List<GroupSectionUiModel>) {
-    val spacing = CrewWikiDesignTokens.spacing
-    val colors = CrewWikiDesignTokens.colors
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.xl)) {
-        sections.forEach { section ->
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
-                Text(
-                    text = section.heading,
-                    style = when (section.level) {
-                        1 -> MaterialTheme.typography.headlineMedium
-                        2 -> MaterialTheme.typography.titleLarge
-                        else -> MaterialTheme.typography.titleMedium
-                    },
-                    color = colors.grayscale.c800,
-                )
-                section.paragraphs.forEach { paragraph ->
-                    Text(
-                        text = paragraph,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.grayscale.text,
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -267,18 +196,16 @@ private fun TimelineEventCard(event: OrganizationEvent) {
         horizontalArrangement = Arrangement.spacedBy(spacing.md),
         verticalAlignment = Alignment.Top,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = colors.primary.c100),
-                shape = MaterialTheme.shapes.small,
-            ) {
-                Text(
-                    text = event.occurredAt.formatDate(),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.primary.c800,
-                )
-            }
+        Card(
+            colors = CardDefaults.cardColors(containerColor = colors.primary.c100),
+            shape = MaterialTheme.shapes.small,
+        ) {
+            Text(
+                text = event.occurredAt.formatGroupDate(),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.primary.c800,
+            )
         }
         Column(
             modifier = Modifier.weight(1f),
@@ -306,13 +233,6 @@ private fun TimelineEventCard(event: OrganizationEvent) {
     }
 }
 
-// "2026-06-22T10:54:00" → "2026.06.22"
-private fun String.formatDate(): String = try {
+private fun String.formatGroupDate(): String = try {
     substringBefore("T").replace("-", ".")
-} catch (e: Exception) { this }
-
-data class GroupSectionUiModel(
-    val level: Int,
-    val heading: String,
-    val paragraphs: List<String>,
-)
+} catch (_: Exception) { this }

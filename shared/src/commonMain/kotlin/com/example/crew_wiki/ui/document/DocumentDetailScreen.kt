@@ -1,6 +1,5 @@
 package com.example.crew_wiki.ui.document
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -13,8 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
@@ -30,6 +27,9 @@ import com.example.crew_wiki.ui.common.CrewWikiActionButton
 import com.example.crew_wiki.ui.common.CrewWikiActionButtonStyle
 import com.example.crew_wiki.ui.common.CrewWikiSurfaceSection
 import com.example.crew_wiki.ui.common.CrewWikiTagChip
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
 
 // web: DocumentPage + DocumentHeader + DocumentContents + DocumentFooter
 @Composable
@@ -41,18 +41,16 @@ fun DocumentDetailScreen(
     onOrganizationClick: (uuid: String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val uiState: DocumentDetailScreenState = rememberDocumentDetailUiState(documentDetail)
+    val document = documentDetail.document
     val colors = CrewWikiDesignTokens.colors
     val spacing = CrewWikiDesignTokens.spacing
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
         contentPadding = PaddingValues(vertical = 16.dp),
     ) {
-        // 메인 카드 - web: section.rounded-xl.border.border-primary-100.bg-white
+        // 메인 카드
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -63,39 +61,55 @@ fun DocumentDetailScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(spacing.xl),
                 ) {
-                    // DocumentHeader - web: flex justify-between
+                    // 헤더 - web: flex justify-between
                     DocumentDetailHeader(
-                        title = uiState.title,
+                        title = document.title,
                         onEditClick = onEditClick,
                         onLogsClick = onLogsClick,
                         onWriteClick = onWriteClick,
                     )
 
-                    // 목차 (TOC) - web: TOC component
-                    if (uiState.sections.isNotEmpty()) {
-                        TableOfContentsSection(sections = uiState.sections)
-                    }
-
-                    // 소속 섹션 - web: OrganizationSection (chip list)
-                    if (uiState.organizations.isNotEmpty()) {
+                    // 소속 섹션 - web: OrganizationSection
+                    if (document.organizations.isNotEmpty()) {
                         OrganizationSection(
-                            organizations = uiState.organizations,
+                            organizations = document.organizations,
                             onOrganizationClick = onOrganizationClick,
                         )
                     }
 
-                    // 본문 - web: toastui-editor-contents
-                    DocumentBody(sections = uiState.sections)
+                    // 본문 마크다운 - web: toastui-editor-contents
+                    if (document.contents.isNotBlank()) {
+                        Markdown(
+                            content = document.contents,
+                            colors = markdownColor(
+                                text = colors.grayscale.text,
+                                codeText = MaterialTheme.colorScheme.onSurfaceVariant,
+                                codeBackground = MaterialTheme.colorScheme.surfaceVariant,
+                                linkText = colors.primary.base,
+                            ),
+                            typography = markdownTypography(
+                                h1 = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                                h2 = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                h3 = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                                h4 = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                h5 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                h6 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                text = MaterialTheme.typography.bodyLarge,
+                                code = MaterialTheme.typography.bodyMedium,
+                                paragraph = MaterialTheme.typography.bodyLarge,
+                            ),
+                        )
+                    }
 
-                    // 연관 크루 - web: CrewMemberSection
-                    if (uiState.relatedCrewNames.isNotEmpty()) {
-                        LinkedCrewSection(crews = uiState.relatedCrewNames)
+                    // 연관 크루 문서
+                    if (documentDetail.relatedCrewDocuments.isNotEmpty()) {
+                        LinkedCrewSection(crews = documentDetail.relatedCrewDocuments.map { it.title })
                     }
                 }
             }
         }
 
-        // 푸터 - web: DocumentFooter
+        // 푸터
         item {
             CrewWikiSurfaceSection(
                 modifier = Modifier
@@ -107,7 +121,7 @@ fun DocumentDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(spacing.xs),
                 ) {
                     Text(
-                        text = "이 문서는 ${formatDateTime(uiState.lastEditedLabel)}에 마지막으로 편집되었습니다.",
+                        text = "이 문서는 ${formatDocDate(document.generateTime)}에 마지막으로 편집되었습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.grayscale.c800,
                     )
@@ -120,9 +134,7 @@ fun DocumentDetailScreen(
                                     fontWeight = FontWeight.Medium,
                                     textDecoration = TextDecoration.Underline,
                                 ),
-                            ) {
-                                append("문의하기")
-                            }
+                            ) { append("문의하기") }
                             append("를 이용해 주세요.")
                         },
                         style = MaterialTheme.typography.bodySmall,
@@ -134,7 +146,7 @@ fun DocumentDetailScreen(
     }
 }
 
-// web: DocumentHeader - flex justify-between (title 왼쪽, 버튼 오른쪽)
+// web: DocumentHeader — flex justify-between
 @Composable
 private fun DocumentDetailHeader(
     title: String,
@@ -150,7 +162,6 @@ private fun DocumentDetailHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        // DocumentTitle - web: text-2xl font-bold
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
@@ -158,57 +169,15 @@ private fun DocumentDetailHeader(
             color = colors.grayscale.c800,
             modifier = Modifier.weight(1f).padding(end = spacing.md),
         )
-        // nav 버튼들
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            CrewWikiActionButton(
-                text = "편집하기",
-                onClick = onEditClick,
-                style = CrewWikiActionButtonStyle.Tertiary,
-            )
-            CrewWikiActionButton(
-                text = "편집기록",
-                onClick = onLogsClick,
-                style = CrewWikiActionButtonStyle.Tertiary,
-            )
-            CrewWikiActionButton(
-                text = "작성하기",
-                onClick = onWriteClick,
-                style = CrewWikiActionButtonStyle.Primary,
-            )
+            CrewWikiActionButton(text = "편집하기", onClick = onEditClick, style = CrewWikiActionButtonStyle.Tertiary)
+            CrewWikiActionButton(text = "편집기록", onClick = onLogsClick, style = CrewWikiActionButtonStyle.Tertiary)
+            CrewWikiActionButton(text = "작성하기", onClick = onWriteClick, style = CrewWikiActionButtonStyle.Primary)
         }
     }
 }
 
-// web: TOC component
-@Composable
-private fun TableOfContentsSection(sections: List<DocumentSectionUiModel>) {
-    val colors = CrewWikiDesignTokens.colors
-    val spacing = CrewWikiDesignTokens.spacing
-
-    CrewWikiSurfaceSection(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-            Text(
-                text = "목차",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = colors.grayscale.c800,
-            )
-            sections.forEachIndexed { index, section ->
-                Text(
-                    text = "${index + 1}. ${section.heading}",
-                    modifier = Modifier.padding(start = ((section.level - 1) * 16).dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.grayscale.c800,
-                )
-            }
-        }
-    }
-}
-
-// web: OrganizationSection - "소속" 제목 + chip 목록
+// web: OrganizationSection
 @Composable
 private fun OrganizationSection(
     organizations: List<OrganizationReference>,
@@ -238,38 +207,7 @@ private fun OrganizationSection(
     }
 }
 
-// web: document body (toastui-editor-contents)
-@Composable
-private fun DocumentBody(sections: List<DocumentSectionUiModel>) {
-    val colors = CrewWikiDesignTokens.colors
-    val spacing = CrewWikiDesignTokens.spacing
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.xl)) {
-        sections.forEach { section ->
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                Text(
-                    text = section.heading,
-                    style = when (section.level) {
-                        1 -> MaterialTheme.typography.headlineMedium
-                        2 -> MaterialTheme.typography.headlineSmall
-                        else -> MaterialTheme.typography.titleLarge
-                    },
-                    fontWeight = FontWeight.Bold,
-                    color = colors.grayscale.c800,
-                )
-                section.paragraphs.forEach { paragraph ->
-                    Text(
-                        text = paragraph,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = colors.grayscale.text,
-                    )
-                }
-            }
-        }
-    }
-}
-
-// web: CrewMemberSection - chip 목록 (연관 크루 문서)
+// web: CrewMemberSection
 @Composable
 private fun LinkedCrewSection(crews: List<String>) {
     val spacing = CrewWikiDesignTokens.spacing
@@ -277,79 +215,12 @@ private fun LinkedCrewSection(crews: List<String>) {
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
         verticalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        crews.forEach { crew ->
-            CrewWikiTagChip(text = crew)
-        }
-    }
-}
-
-// ── 상태 & 파싱 ───────────────────────────────────────────────────────────────
-
-@Immutable
-private data class DocumentDetailScreenState(
-    val title: String,
-    val organizations: List<OrganizationReference>,
-    val relatedCrewNames: List<String>,
-    val lastEditedLabel: String,
-    val sections: List<DocumentSectionUiModel>,
-)
-
-@Immutable
-private data class DocumentSectionUiModel(
-    val level: Int,
-    val heading: String,
-    val paragraphs: List<String>,
-)
-
-@Composable
-private fun rememberDocumentDetailUiState(documentDetail: CrewWikiDocumentDetail): DocumentDetailScreenState {
-    return remember(documentDetail) {
-        val document = documentDetail.document
-        DocumentDetailScreenState(
-            title = document.title,
-            organizations = document.organizations,
-            relatedCrewNames = documentDetail.relatedCrewDocuments.map { it.title },
-            lastEditedLabel = document.generateTime,
-            sections = parseDocumentSections(document.contents),
-        )
-    }
-}
-
-private fun parseDocumentSections(contents: String): List<DocumentSectionUiModel> {
-    val sections = mutableListOf<DocumentSectionUiModel>()
-    var currentLevel = 1
-    var currentHeading = ""
-    val currentParagraphs = mutableListOf<String>()
-
-    fun flush() {
-        val paragraphs = currentParagraphs.map(String::trim).filter(String::isNotEmpty)
-        if (currentHeading.isNotBlank() || paragraphs.isNotEmpty()) {
-            sections += DocumentSectionUiModel(currentLevel, currentHeading, paragraphs)
-        }
-        currentParagraphs.clear()
-    }
-
-    contents.lineSequence().forEach { rawLine ->
-        val line = rawLine.trim()
-        when {
-            line.startsWith("### ") -> { flush(); currentLevel = 3; currentHeading = line.removePrefix("### ").trim() }
-            line.startsWith("## ")  -> { flush(); currentLevel = 2; currentHeading = line.removePrefix("## ").trim() }
-            line.startsWith("# ")   -> { flush(); currentLevel = 1; currentHeading = line.removePrefix("# ").trim() }
-            line.isNotBlank() -> currentParagraphs += line
-        }
-    }
-    flush()
-
-    return sections.ifEmpty {
-        listOf(DocumentSectionUiModel(1, "내용", listOf(contents.trim().ifBlank { "내용이 없습니다." })))
+        crews.forEach { crew -> CrewWikiTagChip(text = crew) }
     }
 }
 
 // "2026-06-22T10:54:00" → "2026년 6월 22일"
-private fun formatDateTime(raw: String): String = try {
-    val datePart = raw.substringBefore("T")
-    val parts = datePart.split("-")
+internal fun formatDocDate(raw: String): String = try {
+    val parts = raw.substringBefore("T").split("-")
     "${parts[0]}년 ${parts[1].trimStart('0')}월 ${parts[2].trimStart('0')}일"
-} catch (_: Exception) {
-    raw
-}
+} catch (_: Exception) { raw }
