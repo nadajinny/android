@@ -59,6 +59,12 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.kotlinx.json)
+            // Markdown 렌더링 (이미지, HTML 태그, bold/italic 등 지원)
+            implementation(libs.markdown.renderer.m3)
+            implementation(libs.markdown.renderer.coil3)
+            // 이미지 로딩 (KMP)
+            implementation(libs.coil3.compose)
+            implementation(libs.coil3.network.ktor)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
